@@ -38,8 +38,7 @@ def get_all_calendars(service) -> dict:
             print(f"[CAL] 跳過（節慶）：{name}", flush=True)
             continue
         if "@" in name:
-            print(f"[CAL] 跳過（主要日曆）：{name}", flush=True)
-            continue
+            name = "主要日曆"
         calendars[cal["id"]] = name
     print(f"[CAL] 使用日曆數：{len(calendars)} → {list(calendars.values())}", flush=True)
     return calendars
