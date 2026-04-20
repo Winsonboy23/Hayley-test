@@ -143,14 +143,22 @@ async def process_new_email(history_id: str):
         
         # 生成摘要
         summary = await summarize_email(email["body"])
-        
+
+        # 陌生人不生成草稿，只通知
+        if is_unknown:
+            await push_message(format_new_email_notification(
+                sender_name=sender_name,
+                sender_role="未知",
+                sender_unit="",
+                summary=summary,
+                is_unknown=True
+            ))
+            return
+
         # 查詢對應模板
-        template = None
-        if not is_unknown:
-            template = await get_template_by_role(sender_role)
-        
+        template = await get_template_by_role(sender_role)
         template_content = template["content"] if template else None
-        
+
         # 生成回覆草稿
         draft_body = await generate_reply_draft(
             email_content=email["body"],
@@ -158,12 +166,12 @@ async def process_new_email(history_id: str):
             sender_role=sender_role,
             template_content=template_content
         )
-        
+
         # 決定回覆主旨
         subject = email["subject"]
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
-        
+
         # 存入 Gmail 草稿
         await create_draft(
             to_email=email["from_email"],

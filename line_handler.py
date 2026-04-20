@@ -59,14 +59,13 @@ def format_new_email_notification(
         sender_info = "未知寄件人"
     
     warning = "\n⚠️ 此寄件人不在聯絡人名單中" if is_unknown else ""
-    
+    draft_note = "" if is_unknown else "\n\n草稿已備妥，請至 Gmail 確認 ✉️"
+
     return f"""📩 新信件
 
 寄件人：{sender_info}{warning}
 
-摘要：{summary}
-
-草稿已備妥，請至 Gmail 確認 ✉️"""
+摘要：{summary}{draft_note}"""
 
 
 def format_event_reminder(event_name: str, event_time: str, location: str = "") -> str:
