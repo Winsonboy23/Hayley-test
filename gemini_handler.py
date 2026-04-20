@@ -2,7 +2,7 @@ import google.generativeai as genai
 import os
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash-latest")
+model = genai.GenerativeModel("gemini-pro")
 
 HALEY_STYLE_PROMPT = """
 你是海莉的 AI 助理，海莉是 PAUL 法式烘焙的 Branding & Marketing 主管。
