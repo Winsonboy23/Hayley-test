@@ -162,7 +162,10 @@ async def process_new_email(history_id: str):
             sender_unit = ""
         
         # 生成摘要
-        summary = await summarize_email(email["body"])
+        try:
+            summary = await summarize_email(email["body"])
+        except Exception:
+            summary = "（摘要暫時無法生成，請直接查看信件）"
 
         # 陌生人不生成草稿，只通知
         if is_unknown:
@@ -192,12 +195,13 @@ async def process_new_email(history_id: str):
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
 
-        # 存入 Gmail 草稿
+        # 存入 Gmail 草稿（用 threadId 而非 messageId）
+        thread_id = messages[0].get("threadId", messages[0]["id"])
         await create_draft(
             to_email=email["from_email"],
             subject=subject,
             body=draft_body,
-            reply_to_id=messages[0]["id"]
+            reply_to_id=thread_id
         )
         
         # LINE 通知海莉
