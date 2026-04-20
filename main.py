@@ -127,10 +127,12 @@ async def process_new_email(history_id: str):
         
         # 取得信件內容
         email = await get_email_by_id(messages[0]["id"])
-        
+        print(f"[DEBUG] 最新信件：from={email['from_email']} subject={email['subject']}", flush=True)
+
         # 查詢寄件人是否在 Notion 聯絡人名單
         contact = await find_contact_by_email(email["from_email"])
         is_unknown = contact is None
+        print(f"[DEBUG] Notion 查詢結果：{'找到' if contact else '陌生人'}", flush=True)
         
         if contact:
             sender_name = contact["name"]
