@@ -27,6 +27,11 @@ def get_calendar_service():
 
 EXCLUDED_CALENDARS = {"台灣的節慶假日", "台灣節慶假日", "Holidays in Taiwan"}
 
+# 日曆清單快取（每小時更新一次）
+_calendar_cache: list = []
+_calendar_cache_time: datetime | None = None
+_CACHE_TTL = timedelta(hours=1)
+
 def get_all_calendars(service) -> dict:
     """回傳 {cal_id: cal_name}，排除節慶假日與主要日曆"""
     result = service.calendarList().list().execute()
@@ -268,7 +273,12 @@ async def search_events(keyword: str) -> list:
 # ── Flex Message 專用資料函式 ──────────────────────────────────────
 
 def _get_calendars_info(service) -> list:
-    """Return [{id, summary, colorId, backgroundColor}]，排除節慶假日"""
+    """Return [{id, summary, colorId, backgroundColor}]，排除節慶假日；結果快取 1 小時"""
+    global _calendar_cache, _calendar_cache_time
+    now = datetime.now(TAIPEI_TZ)
+    if _calendar_cache and _calendar_cache_time and (now - _calendar_cache_time) < _CACHE_TTL:
+        return _calendar_cache
+
     result = service.calendarList().list().execute()
     calendars = []
     for cal in result.get("items", []):
@@ -283,6 +293,8 @@ def _get_calendars_info(service) -> list:
             "colorId": cal.get("colorId"),
             "backgroundColor": cal.get("backgroundColor"),
         })
+    _calendar_cache = calendars
+    _calendar_cache_time = now
     return calendars
 
 
