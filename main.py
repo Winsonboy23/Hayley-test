@@ -21,6 +21,7 @@ from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
     get_events_by_date_range, get_events_this_month, search_events
 )
+from tasks_handler import get_all_tasks
 from notion_handler import (
     find_contact_by_email, get_template_by_role,
     get_contact_info_by_name
@@ -324,52 +325,34 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_message(reply_token, "請輸入：聯絡人 姓名")
             return
 
-        # ── 指令清單 ──
-        if t in ["指令", "help", "Help", "說明"]:
-            await reply_message(reply_token,
-                "📋 可用指令：\n"
-                "・今日行程\n"
-                "・明日行程\n"
-                "・本週行程\n"
-                "・本月行程\n"
-                "・搜尋 關鍵字\n"
-                "・信件\n"
-                "・聯絡人 姓名\n\n"
-                "其他問題直接輸入，我會用 AI 回答。")
+        # ── 待辦事項 ──
+        if t in ["待辦事項", "待辦", "任務", "tasks"]:
+            tasks = await get_all_tasks()
+            if not tasks:
+                await reply_message(reply_token, "✅ 目前沒有待辦事項")
+            else:
+                lines = ["📋 待辦事項\n"]
+                for task in tasks:
+                    due = f"｜📅 {task['due']}" if task.get("due") else ""
+                    tl = f"｜📂 {task['list']}" if task.get("list") else ""
+                    lines.append(f"☐ {task['title']}{due}{tl}")
+                await reply_message(reply_token, "\n".join(lines))
             return
 
-        # ── 其他問題 → AI 回答 ──
-        context_parts = []
-        text_lower = t.lower()
-
-        if any(kw in text_lower for kw in ["幾封", "信件", "收信", "草稿"]):
-            today_count = await count_today_emails()
-            draft_count = await count_drafts()
-            context_parts.append(f"今天收到 {today_count} 封信，草稿區有 {draft_count} 封待發")
-
-        if any(kw in text_lower for kw in ["行程", "會議", "活動", "幾點", "明天", "今天", "這週"]):
-            events = await get_events_by_date_range(days=7)
-            if events:
-                events_text = "\n".join([
-                    f"{e['date']} {e['time']} {e['summary']}" for e in events
-                ])
-                context_parts.append(f"近期行程：\n{events_text}")
-
-        if any(kw in text_lower for kw in ["聯絡", "店長", "廠商"]):
-            words = t.replace("的", " ").split()
-            for word in words:
-                if len(word) >= 2:
-                    contact = await get_contact_info_by_name(word)
-                    if contact:
-                        context_parts.append(
-                            f"聯絡人：{contact['name']}（{contact['unit']} {contact['role']}）"
-                            f"\nEmail：{contact['email']}"
-                        )
-                        break
-
-        context = "\n".join(context_parts)
-        answer = await answer_work_question(t, context)
-        await reply_message(reply_token, answer)
+        # ── 指令清單 / 不認識的輸入 ──
+        MENU = (
+            "📋 可用指令：\n"
+            "・今日行程\n"
+            "・明日行程\n"
+            "・本週行程\n"
+            "・本月行程\n"
+            "・搜尋 關鍵字\n"
+            "・信件\n"
+            "・聯絡人 姓名\n"
+            "・待辦事項\n"
+            "・指令"
+        )
+        await reply_message(reply_token, MENU)
 
     except Exception as e:
         print(f"handle_line_message error: {e}")
