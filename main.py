@@ -327,16 +327,20 @@ async def handle_line_message(text: str, reply_token: str):
 
         # ── 待辦事項 ──
         if t in ["待辦事項", "待辦", "任務", "tasks"]:
-            tasks = await get_all_tasks()
-            if not tasks:
-                await reply_message(reply_token, "✅ 目前沒有待辦事項")
-            else:
-                lines = ["📋 待辦事項\n"]
-                for task in tasks:
-                    due = f"｜📅 {task['due']}" if task.get("due") else ""
-                    tl = f"｜📂 {task['list']}" if task.get("list") else ""
-                    lines.append(f"☐ {task['title']}{due}{tl}")
-                await reply_message(reply_token, "\n".join(lines))
+            try:
+                tasks = await get_all_tasks()
+                if not tasks:
+                    await reply_message(reply_token, "✅ 目前沒有待辦事項")
+                else:
+                    lines = ["📋 待辦事項\n"]
+                    for task in tasks:
+                        due = f"｜📅 {task['due']}" if task.get("due") else ""
+                        tl = f"｜📂 {task['list']}" if task.get("list") else ""
+                        lines.append(f"☐ {task['title']}{due}{tl}")
+                    await reply_message(reply_token, "\n".join(lines))
+            except Exception as e:
+                print(f"tasks error: {e}")
+                await reply_message(reply_token, "⚠️ 待辦事項需要重新授權 Google Tasks 權限，請聯絡管理員。")
             return
 
         # ── 指令清單 / 不認識的輸入 ──
