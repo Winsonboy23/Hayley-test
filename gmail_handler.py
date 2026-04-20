@@ -69,7 +69,7 @@ async def get_email_by_id(message_id: str) -> dict:
     service = get_gmail_service()
     detail = service.users().messages().get(
         userId="me",
-        messageId=message_id,
+        id=message_id,
         format="full"
     ).execute()
     
