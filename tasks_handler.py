@@ -39,7 +39,7 @@ async def get_all_tasks() -> list:
         print(f"[TASKS] 清單：{tl.get('title')} id={tl['id']}", flush=True)
         result = service.tasks().list(
             tasklist=tl["id"],
-            showCompleted=False,
+            showCompleted=True,
             showHidden=True,
             maxResults=100
         ).execute()
@@ -47,6 +47,8 @@ async def get_all_tasks() -> list:
         for item in result.get("items", []):
             print(f"[TASKS]   - {item.get('title')} status={item.get('status')}", flush=True)
         for task in result.get("items", []):
+            if task.get("status") == "completed":
+                continue
             title = task.get("title", "").strip()
             if not title:
                 continue

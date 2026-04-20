@@ -33,11 +33,15 @@ def get_all_calendars(service) -> dict:
     calendars = {}
     for cal in result.get("items", []):
         name = cal.get("summary", cal["id"])
+        print(f"[CAL] 發現日曆：{name!r}", flush=True)
         if name in EXCLUDED_CALENDARS:
+            print(f"[CAL] 跳過（節慶）：{name}", flush=True)
             continue
         if "@" in name:
-            continue  # 主要日曆不顯示
+            print(f"[CAL] 跳過（主要日曆）：{name}", flush=True)
+            continue
         calendars[cal["id"]] = name
+    print(f"[CAL] 使用日曆數：{len(calendars)} → {list(calendars.values())}", flush=True)
     return calendars
 
 
@@ -51,7 +55,9 @@ def fetch_events(service, cal_id: str, cal_name: str, time_min, time_max, seen: 
             singleEvents=True,
             orderBy="startTime"
         ).execute()
-    except Exception:
+        print(f"[CAL] {cal_name} 抓到 {len(result.get('items', []))} 筆事件", flush=True)
+    except Exception as e:
+        print(f"[CAL] {cal_name} 抓取失敗：{e}", flush=True)
         return []
 
     events = []
