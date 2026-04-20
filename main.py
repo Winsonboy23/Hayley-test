@@ -201,6 +201,10 @@ async def line_webhook(request: Request, background_tasks: BackgroundTasks):
     events = json.loads(body_str).get("events", [])
     
     for event in events:
+        user_id = event.get("source", {}).get("userId", "")
+        if user_id:
+            import logging
+            logging.info(f"LINE User ID: {user_id}")
         if event.get("type") == "message" and event.get("message", {}).get("type") == "text":
             background_tasks.add_task(
                 handle_line_message,
