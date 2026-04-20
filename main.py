@@ -72,6 +72,14 @@ async def root():
     return {"status": "ok", "message": "海莉 AI 助理運作中 🤖"}
 
 
+@app.get("/test/models")
+async def list_models():
+    from google import genai
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    models = [m.name for m in client.models.list()]
+    return {"models": models}
+
+
 # ── Gmail Webhook（收新信觸發）──
 @app.post("/webhook/gmail")
 async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
