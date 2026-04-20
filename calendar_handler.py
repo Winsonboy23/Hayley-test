@@ -26,9 +26,15 @@ def get_calendar_service():
 
 
 def get_all_calendars(service) -> dict:
-    """回傳 {cal_id: cal_name} 的對照表"""
+    """回傳 {cal_id: cal_name} 的對照表，email 類名稱轉為「主要日曆」"""
     result = service.calendarList().list().execute()
-    return {cal["id"]: cal.get("summary", cal["id"]) for cal in result.get("items", [])}
+    calendars = {}
+    for cal in result.get("items", []):
+        name = cal.get("summary", cal["id"])
+        if "@" in name:
+            name = "主要日曆"
+        calendars[cal["id"]] = name
+    return calendars
 
 
 def fetch_events(service, cal_id: str, cal_name: str, time_min, time_max, seen: set) -> list:
@@ -193,7 +199,7 @@ async def search_events(keyword: str) -> list:
                     date_str = dt.strftime("%m/%d")
                 elif "date" in start:
                     time_str = "全天"
-                    date_str = start["date"][5:]
+                    date_str = start["date"][5:].replace("-", "/")
                 else:
                     continue
                 events.append({
