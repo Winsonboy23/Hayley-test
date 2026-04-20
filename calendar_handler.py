@@ -322,17 +322,22 @@ def _fetch_raw_events(service, cal_id: str, time_min, time_max, seen: set, q: st
     return events
 
 
+def _fetch_raw_events_isolated(cal_id: str, time_min, time_max, q: str = None) -> list:
+    """每個 thread 各自建立獨立 service，避免 SSL 共用問題"""
+    service = get_calendar_service()
+    return _fetch_raw_events(service, cal_id, time_min, time_max, set(), q)
+
+
 async def _flex_fetch(time_min, time_max, q: str = None):
     import asyncio
     service = get_calendar_service()
     calendar_list = _get_calendars_info(service)
 
     results = await asyncio.gather(*[
-        asyncio.to_thread(_fetch_raw_events, service, cal["id"], time_min, time_max, set(), q)
+        asyncio.to_thread(_fetch_raw_events_isolated, cal["id"], time_min, time_max, q)
         for cal in calendar_list
     ])
 
-    # 合併並去除跨日曆重複（依 summary+start 去重）
     seen = set()
     events = []
     for batch in results:
