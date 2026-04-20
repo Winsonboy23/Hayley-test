@@ -223,19 +223,93 @@ async def line_webhook(request: Request, background_tasks: BackgroundTasks):
 
 
 async def handle_line_message(text: str, reply_token: str):
-    """處理海莉在 LINE 上的問題"""
+    """處理海莉在 LINE 上的訊息"""
     try:
-        # 組合上下文
+        t = text.strip()
+
+        # ── 今日行程 ──
+        if t in ["今日行程", "今天行程", "今天", "行程"]:
+            events = await get_events_by_date_range(days=1)
+            if not events:
+                await reply_message(reply_token, "📅 今天沒有行程")
+            else:
+                lines = ["📅 今日行程\n"]
+                for e in events:
+                    loc = f"｜{e['location']}" if e.get("location") else ""
+                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}")
+                await reply_message(reply_token, "\n".join(lines))
+            return
+
+        # ── 明日行程 ──
+        if t in ["明日行程", "明天行程", "明天"]:
+            events = await get_tomorrow_events()
+            if not events:
+                await reply_message(reply_token, "📅 明天沒有行程")
+            else:
+                lines = ["📅 明日行程\n"]
+                for e in events:
+                    loc = f"｜{e['location']}" if e.get("location") else ""
+                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}")
+                await reply_message(reply_token, "\n".join(lines))
+            return
+
+        # ── 本週行程 ──
+        if t in ["本週行程", "這週行程", "這週", "本週"]:
+            events = await get_events_by_date_range(days=7)
+            if not events:
+                await reply_message(reply_token, "📅 本週沒有行程")
+            else:
+                lines = ["📅 本週行程\n"]
+                for e in events:
+                    loc = f"｜{e['location']}" if e.get("location") else ""
+                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}")
+                await reply_message(reply_token, "\n".join(lines))
+            return
+
+        # ── 信件 / 草稿狀況 ──
+        if t in ["信件", "今日信件", "收信", "草稿", "信件狀況"]:
+            today_count = await count_today_emails()
+            draft_count = await count_drafts()
+            await reply_message(reply_token,
+                f"📩 今天收到 {today_count} 封信\n📝 草稿區有 {draft_count} 封待發")
+            return
+
+        # ── 聯絡人查詢：「聯絡人 王小明」 ──
+        if t.startswith("聯絡人"):
+            name = t.replace("聯絡人", "").strip()
+            if name:
+                contact = await get_contact_info_by_name(name)
+                if contact:
+                    unit = f"｜{contact['unit']}" if contact.get("unit") else ""
+                    await reply_message(reply_token,
+                        f"👤 {contact['name']}（{contact['role']}{unit}）\n📧 {contact['email']}")
+                else:
+                    await reply_message(reply_token, f"找不到「{name}」的聯絡資料")
+            else:
+                await reply_message(reply_token, "請輸入：聯絡人 姓名")
+            return
+
+        # ── 指令清單 ──
+        if t in ["指令", "help", "Help", "說明"]:
+            await reply_message(reply_token,
+                "📋 可用指令：\n"
+                "・今日行程\n"
+                "・明日行程\n"
+                "・本週行程\n"
+                "・信件\n"
+                "・聯絡人 姓名\n\n"
+                "其他問題直接輸入，我會用 AI 回答。")
+            return
+
+        # ── 其他問題 → AI 回答 ──
         context_parts = []
-        
-        # 判斷問題類型並取得相關資料
-        text_lower = text.lower()
-        
+        text_lower = t.lower()
+
         if any(kw in text_lower for kw in ["幾封", "信件", "收信", "草稿"]):
             today_count = await count_today_emails()
             draft_count = await count_drafts()
             context_parts.append(f"今天收到 {today_count} 封信，草稿區有 {draft_count} 封待發")
-        
+
         if any(kw in text_lower for kw in ["行程", "會議", "活動", "幾點", "明天", "今天", "這週"]):
             events = await get_events_by_date_range(days=7)
             if events:
@@ -243,10 +317,9 @@ async def handle_line_message(text: str, reply_token: str):
                     f"{e['date']} {e['time']} {e['summary']}" for e in events
                 ])
                 context_parts.append(f"近期行程：\n{events_text}")
-        
-        if any(kw in text_lower for kw in ["email", "mail", "聯絡", "店長", "廠商"]):
-            # 嘗試找名字關鍵字
-            words = text.replace("的", " ").replace("email", " ").replace("mail", " ").split()
+
+        if any(kw in text_lower for kw in ["聯絡", "店長", "廠商"]):
+            words = t.replace("的", " ").split()
             for word in words:
                 if len(word) >= 2:
                     contact = await get_contact_info_by_name(word)
@@ -256,14 +329,14 @@ async def handle_line_message(text: str, reply_token: str):
                             f"\nEmail：{contact['email']}"
                         )
                         break
-        
+
         context = "\n".join(context_parts)
-        answer = await answer_work_question(text, context)
+        answer = await answer_work_question(t, context)
         await reply_message(reply_token, answer)
-        
+
     except Exception as e:
         print(f"handle_line_message error: {e}")
-        await reply_message(reply_token, f"⚠️ 處理時發生錯誤，請稍後再試。")
+        await reply_message(reply_token, "⚠️ 處理時發生錯誤，請稍後再試。")
 
 
 # ── 排程：每天 18:00 明日行程總結 ──
