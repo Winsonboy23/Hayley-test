@@ -15,7 +15,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from gmail_handler import (
     get_email_by_id, create_draft,
-    count_today_emails, count_drafts, count_unread_emails
+    count_today_emails, count_drafts, count_unread_emails,
+    setup_gmail_watch
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
@@ -60,6 +61,12 @@ async def lifespan(app: FastAPI):
         daily_schedule_summary,
         CronTrigger(hour=18, minute=0, timezone="Asia/Taipei"),
         id="daily_summary"
+    )
+    # 每 6 天更新一次 Gmail Watch（有效期 7 天）
+    scheduler.add_job(
+        renew_gmail_watch,
+        CronTrigger(day="*/6", hour=9, minute=0, timezone="Asia/Taipei"),
+        id="gmail_watch_renew"
     )
     # 每分鐘檢查是否有活動快開始（1小時前提醒）
     scheduler.add_job(
@@ -430,6 +437,21 @@ async def check_upcoming_events():
 
 
 # ── 手動觸發測試用 ──
+async def renew_gmail_watch():
+    try:
+        result = await setup_gmail_watch()
+        print(f"[GMAIL WATCH] 已更新，到期：{result.get('expiration')}", flush=True)
+    except Exception as e:
+        print(f"[GMAIL WATCH] 更新失敗：{e}", flush=True)
+
+
+@app.get("/setup/gmail-watch")
+async def trigger_gmail_watch():
+    """手動啟動或更新 Gmail Watch"""
+    result = await setup_gmail_watch()
+    return {"status": "ok", "expiration": result.get("expiration"), "historyId": result.get("historyId")}
+
+
 @app.get("/test/morning-summary")
 async def test_morning_summary():
     await morning_summary()
