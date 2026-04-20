@@ -19,7 +19,7 @@ from gmail_handler import (
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
-    get_events_by_date_range
+    get_events_by_date_range, get_events_this_month, search_events
 )
 from notion_handler import (
     find_contact_by_email, get_template_by_role,
@@ -236,7 +236,8 @@ async def handle_line_message(text: str, reply_token: str):
                 lines = ["📅 今日行程\n"]
                 for e in events:
                     loc = f"｜{e['location']}" if e.get("location") else ""
-                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}")
+                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
+                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}{cal}")
                 await reply_message(reply_token, "\n".join(lines))
             return
 
@@ -249,7 +250,8 @@ async def handle_line_message(text: str, reply_token: str):
                 lines = ["📅 明日行程\n"]
                 for e in events:
                     loc = f"｜{e['location']}" if e.get("location") else ""
-                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}")
+                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
+                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}{cal}")
                 await reply_message(reply_token, "\n".join(lines))
             return
 
@@ -262,7 +264,40 @@ async def handle_line_message(text: str, reply_token: str):
                 lines = ["📅 本週行程\n"]
                 for e in events:
                     loc = f"｜{e['location']}" if e.get("location") else ""
-                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}")
+                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
+                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
+                await reply_message(reply_token, "\n".join(lines))
+            return
+
+        # ── 本月行程 ──
+        if t in ["本月行程", "這個月行程", "本月"]:
+            events = await get_events_this_month()
+            if not events:
+                await reply_message(reply_token, "📅 本月沒有行程")
+            else:
+                lines = ["📅 本月行程\n"]
+                for e in events:
+                    loc = f"｜{e['location']}" if e.get("location") else ""
+                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
+                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
+                await reply_message(reply_token, "\n".join(lines))
+            return
+
+        # ── 搜尋行程 ──
+        if t.startswith("搜尋"):
+            keyword = t.replace("搜尋", "").strip()
+            if not keyword:
+                await reply_message(reply_token, "請輸入：搜尋 關鍵字")
+                return
+            events = await search_events(keyword)
+            if not events:
+                await reply_message(reply_token, f"找不到含「{keyword}」的行程")
+            else:
+                lines = [f"🔍 搜尋「{keyword}」結果\n"]
+                for e in events:
+                    loc = f"｜{e['location']}" if e.get("location") else ""
+                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
+                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
                 await reply_message(reply_token, "\n".join(lines))
             return
 
@@ -296,6 +331,8 @@ async def handle_line_message(text: str, reply_token: str):
                 "・今日行程\n"
                 "・明日行程\n"
                 "・本週行程\n"
+                "・本月行程\n"
+                "・搜尋 關鍵字\n"
                 "・信件\n"
                 "・聯絡人 姓名\n\n"
                 "其他問題直接輸入，我會用 AI 回答。")
