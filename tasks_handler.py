@@ -42,13 +42,16 @@ async def get_all_tasks() -> list:
             showHidden=False
         ).execute()
         for task in result.get("items", []):
+            title = task.get("title", "").strip()
+            if not title:
+                continue
             due = task.get("due", "")
             due_str = ""
             if due:
                 dt = datetime.fromisoformat(due.replace("Z", "+00:00")).astimezone(TAIPEI_TZ)
                 due_str = dt.strftime("%m/%d")
             tasks.append({
-                "title": task.get("title", "（未命名）"),
+                "title": title,
                 "due": due_str,
                 "list": tl.get("title", "待辦"),
                 "notes": task.get("notes", "")
