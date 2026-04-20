@@ -28,7 +28,7 @@ def get_calendar_service():
 EXCLUDED_CALENDARS = {"台灣的節慶假日", "台灣節慶假日", "Holidays in Taiwan"}
 
 def get_all_calendars(service) -> dict:
-    """回傳 {cal_id: cal_name} 的對照表，email 類名稱轉為「主要日曆」"""
+    """回傳 {cal_id: cal_name}，排除節慶假日與主要日曆"""
     result = service.calendarList().list().execute()
     calendars = {}
     for cal in result.get("items", []):
@@ -36,7 +36,7 @@ def get_all_calendars(service) -> dict:
         if name in EXCLUDED_CALENDARS:
             continue
         if "@" in name:
-            name = "主要日曆"
+            continue  # 主要日曆不顯示
         calendars[cal["id"]] = name
     return calendars
 
@@ -161,6 +161,47 @@ async def get_events_this_month() -> list:
         time_max = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     else:
         time_max = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    seen = set()
+    events = []
+    for cal_id, cal_name in calendars.items():
+        events += fetch_events(service, cal_id, cal_name, time_min, time_max, seen)
+    events.sort(key=lambda e: (e["date"], e["time"]))
+    return events
+
+
+async def get_events_next_month() -> list:
+    service = get_calendar_service()
+    calendars = get_all_calendars(service)
+    now = datetime.now(TAIPEI_TZ)
+    if now.month == 12:
+        time_min = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        time_min = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    if time_min.month == 12:
+        time_max = time_min.replace(year=time_min.year + 1, month=1, day=1)
+    else:
+        time_max = time_min.replace(month=time_min.month + 1, day=1)
+
+    seen = set()
+    events = []
+    for cal_id, cal_name in calendars.items():
+        events += fetch_events(service, cal_id, cal_name, time_min, time_max, seen)
+    events.sort(key=lambda e: (e["date"], e["time"]))
+    return events, time_min.month
+
+
+async def get_events_by_month(month: int) -> list:
+    """取得指定月份的行程"""
+    service = get_calendar_service()
+    calendars = get_all_calendars(service)
+    now = datetime.now(TAIPEI_TZ)
+    year = now.year if month >= now.month else now.year + 1
+    time_min = now.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month == 12:
+        time_max = time_min.replace(year=year + 1, month=1, day=1)
+    else:
+        time_max = time_min.replace(month=month + 1, day=1)
 
     seen = set()
     events = []

@@ -19,7 +19,8 @@ from gmail_handler import (
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
-    get_events_by_date_range, get_events_this_month, search_events
+    get_events_by_date_range, get_events_this_month,
+    get_events_next_month, get_events_by_month, search_events
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -294,6 +295,40 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_message(reply_token, "\n".join(lines))
             return
 
+        # ── 下個月行程 ──
+        if t in ["下個月行程", "下月行程", "下個月", "下月"]:
+            events, month = await get_events_next_month()
+            if not events:
+                await reply_message(reply_token, f"📅 {month}月沒有行程")
+            else:
+                lines = [f"📅 {month}月行程\n"]
+                for e in events:
+                    loc = f"｜{e['location']}" if e.get("location") else ""
+                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
+                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
+                await reply_message(reply_token, "\n".join(lines))
+            return
+
+        # ── x月行程 ──
+        import re
+        m = re.match(r"^(\d{1,2})月行程$", t)
+        if m:
+            month = int(m.group(1))
+            if 1 <= month <= 12:
+                events = await get_events_by_month(month)
+                if not events:
+                    await reply_message(reply_token, f"📅 {month}月沒有行程")
+                else:
+                    lines = [f"📅 {month}月行程\n"]
+                    for e in events:
+                        loc = f"｜{e['location']}" if e.get("location") else ""
+                        cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
+                        lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
+                    await reply_message(reply_token, "\n".join(lines))
+            else:
+                await reply_message(reply_token, "請輸入 1-12 月")
+            return
+
         # ── 搜尋行程 ──
         if t.startswith("搜尋"):
             keyword = t.replace("搜尋", "").strip()
@@ -360,6 +395,8 @@ async def handle_line_message(text: str, reply_token: str):
             "・明日行程\n"
             "・本週行程\n"
             "・本月行程\n"
+            "・下個月行程\n"
+            "・5月行程（指定月份）\n"
             "・搜尋 關鍵字\n"
             "・信件\n"
             "・聯絡人 姓名\n"
