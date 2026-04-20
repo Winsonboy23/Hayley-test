@@ -368,3 +368,162 @@ def build_flex_single(calendar_list: list, event_list: list, label: str) -> dict
         "altText": f"📅 {label}行程（共 {total} 件）",
         "contents": bubble
     }
+
+
+def build_flex_evening_push(calendar_list: list, event_list: list, unread_count: int) -> dict:
+    """晚上推播：明日行程（單張）+ 未讀信件數"""
+    from datetime import datetime, timezone, timedelta
+    TAIPEI_TZ = timezone(timedelta(hours=8))
+    now = datetime.now(TAIPEI_TZ)
+    tomorrow = now + timedelta(days=1)
+    date_str = tomorrow.strftime("%m/%d")
+    weekdays = ["一", "二", "三", "四", "五", "六", "日"]
+    weekday = weekdays[tomorrow.weekday()]
+
+    calendar_map = {cal["id"]: cal for cal in calendar_list}
+
+    def sort_key(e):
+        s = e.get("start", {})
+        return s.get("date") or s.get("dateTime", "")
+
+    sorted_events = sorted(event_list, key=sort_key)
+    total = len(sorted_events)
+    body = []
+
+    for i, ev in enumerate(sorted_events):
+        cid = ev.get("calendarId", "primary")
+        cal = calendar_map.get(cid, {"id": cid})
+        color = get_calendar_color(cal)
+        body.append(_build_single_event_row(ev, color))
+        if i < total - 1:
+            body.append(SEPARATOR)
+
+    if not body:
+        body = [{"type": "text", "text": "明天沒有行程", "color": "#aaaaaa", "size": "sm",
+                 "align": "center", "margin": "md"}]
+
+    bubble = {
+        "type": "bubble",
+        "size": "kilo",
+        "header": {
+            "type": "box",
+            "layout": "horizontal",
+            "backgroundColor": "#1a73e8",
+            "paddingAll": "14px",
+            "contents": [{
+                "type": "box",
+                "layout": "vertical",
+                "flex": 1,
+                "contents": [
+                    {"type": "text", "text": "📅 明日行程", "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": f"{date_str} 星期{weekday}・未讀 {unread_count} 封",
+                     "color": "#c7dcfc", "size": "xxs", "margin": "xs"}
+                ]
+            }]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "0px",
+            "spacing": "none",
+            "contents": body
+        }
+    }
+
+    return {
+        "type": "flex",
+        "altText": f"📅 明日行程 {total} 件・未讀 {unread_count} 封",
+        "contents": bubble
+    }
+
+
+def build_flex_morning_summary(calendar_list: list, event_list: list, unread_count: int) -> dict:
+    """早晨推播：今日行程件數 + 未讀信件數 + 事件列表"""
+    from datetime import datetime, timezone, timedelta
+    TAIPEI_TZ = timezone(timedelta(hours=8))
+    now = datetime.now(TAIPEI_TZ)
+    date_str = now.strftime("%m/%d")
+    weekdays = ["一", "二", "三", "四", "五", "六", "日"]
+    weekday = weekdays[now.weekday()]
+
+    calendar_map = {cal["id"]: cal for cal in calendar_list}
+
+    def sort_key(e):
+        s = e.get("start", {})
+        return s.get("date") or s.get("dateTime", "")
+
+    sorted_events = sorted(event_list, key=sort_key)
+    total = len(sorted_events)
+
+    stats_row = {
+        "type": "box",
+        "layout": "horizontal",
+        "margin": "md",
+        "spacing": "sm",
+        "contents": [
+            {
+                "type": "box", "layout": "vertical", "flex": 1,
+                "backgroundColor": "#e8f0fe", "cornerRadius": "8px", "paddingAll": "10px",
+                "contents": [
+                    {"type": "text", "text": str(total), "size": "xl", "weight": "bold",
+                     "color": "#1a73e8", "align": "center"},
+                    {"type": "text", "text": "件行程", "size": "xxs", "color": "#555555", "align": "center"}
+                ]
+            },
+            {
+                "type": "box", "layout": "vertical", "flex": 1,
+                "backgroundColor": "#fce4ec", "cornerRadius": "8px", "paddingAll": "10px",
+                "contents": [
+                    {"type": "text", "text": str(unread_count), "size": "xl", "weight": "bold",
+                     "color": "#d50000", "align": "center"},
+                    {"type": "text", "text": "封未讀", "size": "xxs", "color": "#555555", "align": "center"}
+                ]
+            }
+        ]
+    }
+
+    body_contents = [stats_row]
+
+    if sorted_events:
+        body_contents.append({"type": "separator", "margin": "md"})
+        display = sorted_events[:5]
+        for i, ev in enumerate(display):
+            cid = ev.get("calendarId", "primary")
+            cal = calendar_map.get(cid, {"id": cid})
+            color = get_calendar_color(cal)
+            body_contents.append(_build_single_event_row(ev, color))
+            if i < len(display) - 1:
+                body_contents.append(SEPARATOR)
+        if len(sorted_events) > 5:
+            body_contents.append({
+                "type": "text",
+                "text": f"還有 {len(sorted_events) - 5} 件...",
+                "size": "xxs", "color": "#aaaaaa", "margin": "sm", "align": "center"
+            })
+
+    bubble = {
+        "type": "bubble",
+        "size": "kilo",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#1a73e8",
+            "paddingAll": "14px",
+            "contents": [
+                {"type": "text", "text": "☀️ 早安，今日摘要", "color": "#ffffff", "size": "md", "weight": "bold"},
+                {"type": "text", "text": f"{date_str} 星期{weekday}", "color": "#c7dcfc", "size": "xxs", "margin": "xs"}
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "14px",
+            "contents": body_contents
+        }
+    }
+
+    return {
+        "type": "flex",
+        "altText": f"☀️ 早安！今天 {total} 件行程・未讀 {unread_count} 封",
+        "contents": bubble
+    }

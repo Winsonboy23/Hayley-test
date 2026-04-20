@@ -32,6 +32,21 @@ async def push_message(text: str):
         )
 
 
+async def push_flex(flex: dict):
+    """主動推播 Flex Message 給海莉"""
+    async with AsyncApiClient(configuration) as api_client:
+        line_bot_api = AsyncMessagingApi(api_client)
+        await line_bot_api.push_message(
+            PushMessageRequest(
+                to=LINE_USER_ID,
+                messages=[FlexMessage(
+                    alt_text=flex["altText"],
+                    contents=FlexContainer.from_dict(flex["contents"])
+                )]
+            )
+        )
+
+
 async def reply_message(reply_token: str, text: str):
     """回覆海莉的訊息"""
     async with AsyncApiClient(configuration) as api_client:

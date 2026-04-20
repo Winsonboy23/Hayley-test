@@ -15,7 +15,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from gmail_handler import (
     get_email_by_id, create_draft,
-    count_today_emails, count_drafts
+    count_today_emails, count_drafts, count_unread_emails
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
@@ -23,7 +23,10 @@ from calendar_handler import (
     get_flex_this_month, get_flex_next_month,
     get_flex_by_month, search_flex_events,
 )
-from flex_builder import build_flex_single, build_flex_carousel
+from flex_builder import (
+    build_flex_single, build_flex_carousel,
+    build_flex_evening_push, build_flex_morning_summary
+)
 from tasks_handler import get_all_tasks
 from notion_handler import (
     find_contact_by_email, get_template_by_role,
@@ -34,9 +37,8 @@ from gemini_handler import (
     answer_work_question, summarize_schedule
 )
 from line_handler import (
-    push_message, reply_message, reply_flex, handler,
-    format_new_email_notification,
-    format_event_reminder, format_daily_summary
+    push_message, push_flex, reply_message, reply_flex, handler,
+    format_new_email_notification, format_event_reminder
 )
 
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
@@ -47,7 +49,13 @@ scheduler = AsyncIOScheduler(timezone="Asia/Taipei")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 每天 18:00 推送明日行程總結
+    # 每天 08:00 推送今日摘要
+    scheduler.add_job(
+        morning_summary,
+        CronTrigger(hour=8, minute=0, timezone="Asia/Taipei"),
+        id="morning_summary"
+    )
+    # 每天 18:00 推送明日行程
     scheduler.add_job(
         daily_schedule_summary,
         CronTrigger(hour=18, minute=0, timezone="Asia/Taipei"),
@@ -378,13 +386,22 @@ async def handle_line_message(text: str, reply_token: str):
         await reply_message(reply_token, "⚠️ 處理時發生錯誤，請稍後再試。")
 
 
-# ── 排程：每天 18:00 明日行程總結 ──
-async def daily_schedule_summary():
-    """每天 18:00 推送明日行程"""
+# ── 排程：每天 08:00 今日摘要 ──
+async def morning_summary():
     try:
-        events = await get_tomorrow_events()
-        summary = await summarize_schedule(events)
-        await push_message(format_daily_summary(summary))
+        cal_list, events = await get_flex_today()
+        unread = await count_unread_emails()
+        await push_flex(build_flex_morning_summary(cal_list, events, unread))
+    except Exception as e:
+        print(f"morning_summary error: {e}")
+
+
+# ── 排程：每天 18:00 明日行程 ──
+async def daily_schedule_summary():
+    try:
+        cal_list, events = await get_flex_tomorrow()
+        unread = await count_unread_emails()
+        await push_flex(build_flex_evening_push(cal_list, events, unread))
     except Exception as e:
         print(f"daily_schedule_summary error: {e}")
 
@@ -413,11 +430,16 @@ async def check_upcoming_events():
 
 
 # ── 手動觸發測試用 ──
+@app.get("/test/morning-summary")
+async def test_morning_summary():
+    await morning_summary()
+    return {"status": "ok", "message": "已發送今日早晨摘要"}
+
+
 @app.get("/test/daily-summary")
 async def test_daily_summary():
-    """手動觸發每日總結（測試用）"""
     await daily_schedule_summary()
-    return {"status": "ok", "message": "已發送明日行程總結"}
+    return {"status": "ok", "message": "已發送明日行程推播"}
 
 
 @app.get("/test/new-email")

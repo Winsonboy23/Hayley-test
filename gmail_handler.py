@@ -132,6 +132,13 @@ async def count_today_emails() -> int:
     return results.get("resultSizeEstimate", 0)
 
 
+async def count_unread_emails() -> int:
+    """計算收件匣未讀信件數"""
+    service = get_gmail_service()
+    label = service.users().labels().get(userId="me", id="INBOX").execute()
+    return label.get("messagesUnread", 0)
+
+
 async def count_drafts() -> int:
     """計算草稿數量"""
     service = get_gmail_service()
