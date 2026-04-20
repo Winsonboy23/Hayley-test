@@ -104,40 +104,59 @@ async def get_upcoming_events_today() -> list:
     return events
 
 
-async def get_events_by_date_range(days: int = 7) -> list:
+async def get_all_calendar_ids(service) -> list:
+    """取得所有日曆 ID"""
+    result = service.calendarList().list().execute()
+    return [cal["id"] for cal in result.get("items", [])]
+
+
+async def get_events_by_date_range(days: int = 7, from_start_of_day: bool = False) -> list:
     """取得未來幾天的活動（給 LINE 問答用）"""
     service = get_calendar_service()
-    
+
     now = datetime.now(TAIPEI_TZ)
-    end = now + timedelta(days=days)
-    
-    events_result = service.events().list(
-        calendarId="primary",
-        timeMin=now.isoformat(),
-        timeMax=end.isoformat(),
-        singleEvents=True,
-        orderBy="startTime"
-    ).execute()
-    
+    if from_start_of_day or days == 1:
+        time_min = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        time_min = now
+    time_max = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=days)
+
+    calendar_ids = await get_all_calendar_ids(service)
+
+    seen = set()
     events = []
-    for event in events_result.get("items", []):
-        start = event.get("start", {})
-        time_str = ""
-        date_str = ""
-        
-        if "dateTime" in start:
-            dt = datetime.fromisoformat(start["dateTime"])
-            time_str = dt.strftime("%H:%M")
-            date_str = dt.strftime("%m/%d")
-        elif "date" in start:
-            time_str = "全天"
-            date_str = start["date"][5:]
-        
-        events.append({
-            "summary": event.get("summary", "（未命名活動）"),
-            "time": time_str,
-            "date": date_str,
-            "location": event.get("location", "")
-        })
-    
+    for cal_id in calendar_ids:
+        try:
+            result = service.events().list(
+                calendarId=cal_id,
+                timeMin=time_min.isoformat(),
+                timeMax=time_max.isoformat(),
+                singleEvents=True,
+                orderBy="startTime"
+            ).execute()
+            for event in result.get("items", []):
+                key = event.get("id", "")
+                if key in seen:
+                    continue
+                seen.add(key)
+                start = event.get("start", {})
+                time_str = ""
+                date_str = ""
+                if "dateTime" in start:
+                    dt = datetime.fromisoformat(start["dateTime"])
+                    time_str = dt.strftime("%H:%M")
+                    date_str = dt.strftime("%m/%d")
+                elif "date" in start:
+                    time_str = "全天"
+                    date_str = start["date"][5:]
+                events.append({
+                    "summary": event.get("summary", "（未命名活動）"),
+                    "time": time_str,
+                    "date": date_str,
+                    "location": event.get("location", "")
+                })
+        except Exception:
+            continue
+
+    events.sort(key=lambda e: (e["date"], e["time"]))
     return events
