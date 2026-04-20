@@ -1,0 +1,370 @@
+CALENDAR_COLORS = {
+    "1":  {"main": "#7986cb", "light": "#e8eaf6", "dark": "#3949ab"},
+    "2":  {"main": "#33b679", "light": "#e8f5e9", "dark": "#1b5e20"},
+    "3":  {"main": "#8e24aa", "light": "#f3e5f5", "dark": "#6a1b9a"},
+    "4":  {"main": "#e67c73", "light": "#fce4ec", "dark": "#c62828"},
+    "5":  {"main": "#f6bf26", "light": "#fffde7", "dark": "#f57f17"},
+    "6":  {"main": "#f4511e", "light": "#fbe9e7", "dark": "#bf360c"},
+    "7":  {"main": "#039be5", "light": "#e1f5fe", "dark": "#01579b"},
+    "8":  {"main": "#616161", "light": "#f5f5f5", "dark": "#212121"},
+    "9":  {"main": "#3f51b5", "light": "#e8eaf6", "dark": "#1a237e"},
+    "10": {"main": "#0b8043", "light": "#e8f5e9", "dark": "#1b5e20"},
+    "11": {"main": "#d50000", "light": "#ffebee", "dark": "#b71c1c"},
+    "default": {"main": "#1a73e8", "light": "#e8f0fe", "dark": "#1558b0"},
+}
+
+SEPARATOR = {"type": "separator", "color": "#f0f0f0", "margin": "none"}
+
+
+def get_calendar_color(calendar: dict) -> dict:
+    bg = calendar.get("backgroundColor")
+    if bg:
+        return {"main": bg, "light": bg + "22", "dark": bg}
+    color_id = str(calendar.get("colorId") or "default")
+    return CALENDAR_COLORS.get(color_id, CALENDAR_COLORS["default"])
+
+
+def _parse_date(start: dict) -> str:
+    """Return MM/DD from start dict."""
+    date_str = start.get("date") or start.get("dateTime", "")
+    if "T" in date_str:
+        date_str = date_str[:10]
+    parts = date_str.split("-")
+    if len(parts) == 3:
+        return f"{parts[1]}/{parts[2]}"
+    return date_str
+
+
+def _parse_time(date_time_str: str) -> str:
+    return date_time_str[11:16]
+
+
+def _is_all_day(event: dict) -> bool:
+    return "date" in event.get("start", {})
+
+
+def _dot(color_hex: str, size: str = "8px", radius: str = "4px") -> dict:
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "width": size,
+        "height": size,
+        "cornerRadius": radius,
+        "backgroundColor": color_hex,
+        "contents": []
+    }
+
+
+def _build_sub_label(text: str) -> dict:
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "backgroundColor": "#fafafa",
+        "paddingTop": "5px",
+        "paddingBottom": "5px",
+        "paddingStart": "14px",
+        "contents": [{"type": "text", "text": text, "size": "xxs", "color": "#aaaaaa"}]
+    }
+
+
+def _build_calendar_header(name: str, color: dict) -> dict:
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "backgroundColor": "#f5f5f5",
+        "paddingTop": "7px",
+        "paddingBottom": "7px",
+        "paddingStart": "14px",
+        "paddingEnd": "14px",
+        "contents": [{
+            "type": "box",
+            "layout": "horizontal",
+            "spacing": "sm",
+            "contents": [
+                {**_dot(color["main"], "10px", "5px"), "offsetTop": "2px"},
+                {"type": "text", "text": name, "size": "xxs", "color": "#555555", "weight": "bold"}
+            ]
+        }]
+    }
+
+
+def _build_event_row(event: dict, color: dict) -> dict:
+    """Row with date + optional time badge + title (for carousel)."""
+    date_label = _parse_date(event["start"])
+    title = event.get("summary", "（無標題）")
+    all_day = _is_all_day(event)
+
+    contents = [
+        {
+            "type": "box",
+            "layout": "vertical",
+            "width": "8px",
+            "contents": [
+                {"type": "filler"},
+                _dot(color["main"]),
+                {"type": "filler"}
+            ]
+        },
+        {
+            "type": "text",
+            "text": date_label,
+            "size": "xs",
+            "color": "#555555",
+            "weight": "bold",
+            "flex": 0,
+            "offsetTop": "1px"
+        }
+    ]
+
+    if not all_day:
+        contents.append({
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": color["light"],
+            "cornerRadius": "4px",
+            "paddingTop": "1px",
+            "paddingBottom": "1px",
+            "paddingStart": "6px",
+            "paddingEnd": "6px",
+            "flex": 0,
+            "contents": [{
+                "type": "text",
+                "text": _parse_time(event["start"]["dateTime"]),
+                "size": "xxs",
+                "color": color["dark"]
+            }]
+        })
+
+    contents.append({
+        "type": "text",
+        "text": title,
+        "size": "sm",
+        "color": "#222222",
+        "flex": 1,
+        "wrap": True
+    })
+
+    return {
+        "type": "box",
+        "layout": "horizontal",
+        "paddingTop": "9px",
+        "paddingBottom": "9px",
+        "paddingStart": "14px",
+        "paddingEnd": "14px",
+        "spacing": "sm",
+        "contents": contents
+    }
+
+
+def _build_single_event_row(event: dict, color: dict) -> dict:
+    """Row for single-day view: colored dot + time/全天 badge + title."""
+    title = event.get("summary", "（無標題）")
+    all_day = _is_all_day(event)
+    time_text = "全天" if all_day else _parse_time(event["start"]["dateTime"])
+
+    return {
+        "type": "box",
+        "layout": "horizontal",
+        "paddingTop": "10px",
+        "paddingBottom": "10px",
+        "paddingStart": "14px",
+        "paddingEnd": "14px",
+        "spacing": "sm",
+        "contents": [
+            {
+                "type": "box",
+                "layout": "vertical",
+                "width": "8px",
+                "contents": [
+                    {"type": "filler"},
+                    _dot(color["main"]),
+                    {"type": "filler"}
+                ]
+            },
+            {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": color["light"],
+                "cornerRadius": "4px",
+                "paddingTop": "1px",
+                "paddingBottom": "1px",
+                "paddingStart": "6px",
+                "paddingEnd": "6px",
+                "flex": 0,
+                "contents": [{
+                    "type": "text",
+                    "text": time_text,
+                    "size": "xxs",
+                    "color": color["dark"]
+                }]
+            },
+            {
+                "type": "text",
+                "text": title,
+                "size": "sm",
+                "color": "#222222",
+                "flex": 1,
+                "wrap": True
+            }
+        ]
+    }
+
+
+def _build_header(title_text: str, subtitle: str, page_label: str = "") -> dict:
+    header_contents = [
+        {
+            "type": "box",
+            "layout": "vertical",
+            "flex": 1,
+            "contents": [
+                {"type": "text", "text": title_text, "color": "#ffffff", "size": "md", "weight": "bold"},
+                {"type": "text", "text": subtitle, "color": "#c7dcfc", "size": "xxs", "margin": "xs"}
+            ]
+        }
+    ]
+    if page_label:
+        header_contents.append({
+            "type": "text",
+            "text": page_label,
+            "color": "#c7dcfc",
+            "size": "xxs",
+            "align": "end",
+            "gravity": "bottom"
+        })
+    return {
+        "type": "box",
+        "layout": "horizontal",
+        "backgroundColor": "#1a73e8",
+        "paddingAll": "14px",
+        "contents": header_contents
+    }
+
+
+def _build_bubble(*, calendar_name, color, all_day_events, timed_events,
+                  page_label, month_label, total_count, calendar_count) -> dict:
+    body = []
+    body.append(_build_calendar_header(calendar_name, color))
+
+    if all_day_events:
+        body.append(_build_sub_label("全天"))
+        for i, ev in enumerate(all_day_events):
+            body.append(_build_event_row(ev, color))
+            if i < len(all_day_events) - 1 or timed_events:
+                body.append(SEPARATOR)
+
+    if timed_events:
+        body.append(_build_sub_label("有時間"))
+        for i, ev in enumerate(timed_events):
+            body.append(_build_event_row(ev, color))
+            if i < len(timed_events) - 1:
+                body.append(SEPARATOR)
+
+    footer_text = "滑動查看其他日曆 →" if calendar_count > 1 else f"{month_label} 全部行程"
+
+    return {
+        "type": "bubble",
+        "size": "kilo",
+        "header": _build_header(
+            f"📅 {month_label}行程",
+            f"共 {total_count} 件・{calendar_count} 個日曆",
+            page_label
+        ),
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "0px",
+            "spacing": "none",
+            "contents": body
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#f5f5f5",
+            "paddingAll": "10px",
+            "contents": [
+                {"type": "text", "text": footer_text, "size": "xxs", "color": "#aaaaaa", "align": "center"}
+            ]
+        }
+    }
+
+
+def build_flex_carousel(calendar_list: list, event_list: list, month_label: str) -> dict:
+    """Carousel: one bubble per calendar."""
+    calendar_map = {cal["id"]: cal for cal in calendar_list}
+
+    groups: dict = {}
+    for event in event_list:
+        cid = event.get("calendarId", "primary")
+        groups.setdefault(cid, []).append(event)
+
+    def sort_key(e):
+        s = e.get("start", {})
+        return s.get("date") or s.get("dateTime", "")
+
+    total_count = len(event_list)
+    calendar_count = len(groups)
+    bubbles = []
+
+    for page_index, (cid, events) in enumerate(groups.items()):
+        cal = calendar_map.get(cid, {"id": cid, "summary": cid})
+        color = get_calendar_color(cal)
+        sorted_events = sorted(events, key=sort_key)
+        all_day = [e for e in sorted_events if _is_all_day(e)]
+        timed = [e for e in sorted_events if not _is_all_day(e)]
+
+        bubbles.append(_build_bubble(
+            calendar_name=cal.get("summary", cid),
+            color=color,
+            all_day_events=all_day,
+            timed_events=timed,
+            page_label=f"{page_index + 1} / {calendar_count}",
+            month_label=month_label,
+            total_count=total_count,
+            calendar_count=calendar_count
+        ))
+
+    return {
+        "type": "flex",
+        "altText": f"📅 {month_label}行程（共 {total_count} 件）",
+        "contents": {"type": "carousel", "contents": bubbles}
+    }
+
+
+def build_flex_single(calendar_list: list, event_list: list, label: str) -> dict:
+    """Single bubble for today/tomorrow — all calendars merged, sorted by time."""
+    calendar_map = {cal["id"]: cal for cal in calendar_list}
+
+    def sort_key(e):
+        s = e.get("start", {})
+        return s.get("date") or s.get("dateTime", "")
+
+    sorted_events = sorted(event_list, key=sort_key)
+    total = len(sorted_events)
+    body = []
+
+    for i, ev in enumerate(sorted_events):
+        cid = ev.get("calendarId", "primary")
+        cal = calendar_map.get(cid, {"id": cid})
+        color = get_calendar_color(cal)
+        body.append(_build_single_event_row(ev, color))
+        if i < total - 1:
+            body.append(SEPARATOR)
+
+    bubble = {
+        "type": "bubble",
+        "size": "kilo",
+        "header": _build_header(f"📅 {label}行程", f"共 {total} 件"),
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "0px",
+            "spacing": "none",
+            "contents": body
+        }
+    }
+
+    return {
+        "type": "flex",
+        "altText": f"📅 {label}行程（共 {total} 件）",
+        "contents": bubble
+    }

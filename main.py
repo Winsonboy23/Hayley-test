@@ -19,9 +19,11 @@ from gmail_handler import (
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
-    get_events_by_date_range, get_events_this_month,
-    get_events_next_month, get_events_by_month, search_events
+    get_flex_today, get_flex_tomorrow, get_flex_range,
+    get_flex_this_month, get_flex_next_month,
+    get_flex_by_month, search_flex_events,
 )
+from flex_builder import build_flex_single, build_flex_carousel
 from tasks_handler import get_all_tasks
 from notion_handler import (
     find_contact_by_email, get_template_by_role,
@@ -32,7 +34,7 @@ from gemini_handler import (
     answer_work_question, summarize_schedule
 )
 from line_handler import (
-    push_message, reply_message, handler,
+    push_message, reply_message, reply_flex, handler,
     format_new_email_notification,
     format_event_reminder, format_daily_summary
 )
@@ -239,92 +241,63 @@ async def handle_line_message(text: str, reply_token: str):
     try:
         t = text.strip()
 
+        import re
+
         # ── 今日行程 ──
         if t in ["今日行程", "今天行程", "今天", "行程"]:
-            events = await get_events_by_date_range(days=1)
+            cal_list, events = await get_flex_today()
             if not events:
                 await reply_message(reply_token, "📅 今天沒有行程")
             else:
-                lines = ["📅 今日行程\n"]
-                for e in events:
-                    loc = f"｜{e['location']}" if e.get("location") else ""
-                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
-                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}{cal}")
-                await reply_message(reply_token, "\n".join(lines))
+                await reply_flex(reply_token, build_flex_single(cal_list, events, "今日"))
             return
 
         # ── 明日行程 ──
         if t in ["明日行程", "明天行程", "明天"]:
-            events = await get_tomorrow_events()
+            cal_list, events = await get_flex_tomorrow()
             if not events:
                 await reply_message(reply_token, "📅 明天沒有行程")
             else:
-                lines = ["📅 明日行程\n"]
-                for e in events:
-                    loc = f"｜{e['location']}" if e.get("location") else ""
-                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
-                    lines.append(f"🕐 {e['time']} {e['summary']}{loc}{cal}")
-                await reply_message(reply_token, "\n".join(lines))
+                await reply_flex(reply_token, build_flex_single(cal_list, events, "明日"))
             return
 
         # ── 本週行程 ──
         if t in ["本週行程", "這週行程", "這週", "本週"]:
-            events = await get_events_by_date_range(days=7)
+            cal_list, events = await get_flex_range(days=7)
             if not events:
                 await reply_message(reply_token, "📅 本週沒有行程")
             else:
-                lines = ["📅 本週行程\n"]
-                for e in events:
-                    loc = f"｜{e['location']}" if e.get("location") else ""
-                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
-                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
-                await reply_message(reply_token, "\n".join(lines))
+                await reply_flex(reply_token, build_flex_carousel(cal_list, events, "本週"))
             return
 
         # ── 本月行程 ──
         if t in ["本月行程", "這個月行程", "本月"]:
-            events = await get_events_this_month()
+            cal_list, events, month = await get_flex_this_month()
             if not events:
                 await reply_message(reply_token, "📅 本月沒有行程")
             else:
-                lines = ["📅 本月行程\n"]
-                for e in events:
-                    loc = f"｜{e['location']}" if e.get("location") else ""
-                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
-                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
-                await reply_message(reply_token, "\n".join(lines))
+                await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             return
 
         # ── 下個月行程 ──
         if t in ["下個月行程", "下月行程", "下個月", "下月"]:
-            events, month = await get_events_next_month()
+            cal_list, events, month = await get_flex_next_month()
             if not events:
                 await reply_message(reply_token, f"📅 {month}月沒有行程")
             else:
-                lines = [f"📅 {month}月行程\n"]
-                for e in events:
-                    loc = f"｜{e['location']}" if e.get("location") else ""
-                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
-                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
-                await reply_message(reply_token, "\n".join(lines))
+                await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             return
 
         # ── x月行程 ──
-        import re
         m = re.match(r"^(\d{1,2})月行程$", t)
         if m:
             month = int(m.group(1))
             if 1 <= month <= 12:
-                events = await get_events_by_month(month)
+                cal_list, events = await get_flex_by_month(month)
                 if not events:
                     await reply_message(reply_token, f"📅 {month}月沒有行程")
                 else:
-                    lines = [f"📅 {month}月行程\n"]
-                    for e in events:
-                        loc = f"｜{e['location']}" if e.get("location") else ""
-                        cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
-                        lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
-                    await reply_message(reply_token, "\n".join(lines))
+                    await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             else:
                 await reply_message(reply_token, "請輸入 1-12 月")
             return
@@ -335,16 +308,11 @@ async def handle_line_message(text: str, reply_token: str):
             if not keyword:
                 await reply_message(reply_token, "請輸入：搜尋 關鍵字")
                 return
-            events = await search_events(keyword)
+            cal_list, events = await search_flex_events(keyword)
             if not events:
                 await reply_message(reply_token, f"找不到含「{keyword}」的行程")
             else:
-                lines = [f"🔍 搜尋「{keyword}」結果\n"]
-                for e in events:
-                    loc = f"｜{e['location']}" if e.get("location") else ""
-                    cal = f"｜📂 {e['calendar']}" if e.get("calendar") else ""
-                    lines.append(f"📌 {e['date']} {e['time']} {e['summary']}{loc}{cal}")
-                await reply_message(reply_token, "\n".join(lines))
+                await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"搜尋：{keyword}"))
             return
 
         # ── 信件 / 草稿狀況 ──

@@ -263,3 +263,134 @@ async def search_events(keyword: str) -> list:
             continue
     events.sort(key=lambda e: (e["date"], e["time"]))
     return events
+
+
+# ── Flex Message 專用資料函式 ──────────────────────────────────────
+
+def _get_calendars_info(service) -> list:
+    """Return [{id, summary, colorId, backgroundColor}]，排除節慶假日"""
+    result = service.calendarList().list().execute()
+    calendars = []
+    for cal in result.get("items", []):
+        name = cal.get("summary", cal["id"])
+        if name in EXCLUDED_CALENDARS:
+            continue
+        if "@" in name:
+            name = "主要日曆"
+        calendars.append({
+            "id": cal["id"],
+            "summary": name,
+            "colorId": cal.get("colorId"),
+            "backgroundColor": cal.get("backgroundColor"),
+        })
+    return calendars
+
+
+def _fetch_raw_events(service, cal_id: str, time_min, time_max, seen: set, q: str = None) -> list:
+    """回傳原始事件格式（含 calendarId），供 Flex builder 使用"""
+    try:
+        params = dict(
+            calendarId=cal_id,
+            timeMin=time_min.isoformat(),
+            timeMax=time_max.isoformat(),
+            singleEvents=True,
+            orderBy="startTime"
+        )
+        if q:
+            params["q"] = q
+        result = service.events().list(**params).execute()
+    except Exception as e:
+        print(f"[CAL] fetch_raw_events {cal_id} error: {e}", flush=True)
+        return []
+
+    events = []
+    for event in result.get("items", []):
+        key = event.get("id", "")
+        if key in seen:
+            continue
+        seen.add(key)
+        start = event.get("start", {})
+        if "dateTime" not in start and "date" not in start:
+            continue
+        events.append({
+            "summary": event.get("summary", "（未命名活動）"),
+            "calendarId": cal_id,
+            "start": start,
+            "end": event.get("end", {}),
+            "location": event.get("location", ""),
+        })
+    return events
+
+
+async def _flex_fetch(time_min, time_max, q: str = None):
+    service = get_calendar_service()
+    calendar_list = _get_calendars_info(service)
+    seen = set()
+    events = []
+    for cal in calendar_list:
+        events += _fetch_raw_events(service, cal["id"], time_min, time_max, seen, q=q)
+    return calendar_list, events
+
+
+async def get_flex_today():
+    now = datetime.now(TAIPEI_TZ)
+    time_min = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    time_max = time_min + timedelta(days=1)
+    return await _flex_fetch(time_min, time_max)
+
+
+async def get_flex_tomorrow():
+    now = datetime.now(TAIPEI_TZ)
+    time_min = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    time_max = time_min + timedelta(days=1)
+    return await _flex_fetch(time_min, time_max)
+
+
+async def get_flex_range(days: int):
+    now = datetime.now(TAIPEI_TZ)
+    time_min = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    time_max = time_min + timedelta(days=days)
+    return await _flex_fetch(time_min, time_max)
+
+
+async def get_flex_this_month():
+    now = datetime.now(TAIPEI_TZ)
+    time_min = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if now.month == 12:
+        time_max = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        time_max = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    cal_list, events = await _flex_fetch(time_min, time_max)
+    return cal_list, events, now.month
+
+
+async def get_flex_next_month():
+    now = datetime.now(TAIPEI_TZ)
+    if now.month == 12:
+        time_min = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        time_min = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    if time_min.month == 12:
+        time_max = time_min.replace(year=time_min.year + 1, month=1, day=1)
+    else:
+        time_max = time_min.replace(month=time_min.month + 1, day=1)
+    cal_list, events = await _flex_fetch(time_min, time_max)
+    return cal_list, events, time_min.month
+
+
+async def get_flex_by_month(month: int):
+    now = datetime.now(TAIPEI_TZ)
+    year = now.year if month >= now.month else now.year + 1
+    time_min = now.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month == 12:
+        time_max = time_min.replace(year=year + 1, month=1, day=1)
+    else:
+        time_max = time_min.replace(month=month + 1, day=1)
+    return await _flex_fetch(time_min, time_max)
+
+
+async def search_flex_events(keyword: str):
+    now = datetime.now(TAIPEI_TZ)
+    time_min = now - timedelta(days=365)
+    time_max = now + timedelta(days=365)
+    return await _flex_fetch(time_min, time_max, q=keyword)

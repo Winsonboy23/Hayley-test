@@ -6,7 +6,9 @@ from linebot.v3.messaging import (
     Configuration,
     ReplyMessageRequest,
     PushMessageRequest,
-    TextMessage
+    TextMessage,
+    FlexMessage,
+    FlexContainer,
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
@@ -38,6 +40,21 @@ async def reply_message(reply_token: str, text: str):
             ReplyMessageRequest(
                 reply_token=reply_token,
                 messages=[TextMessage(text=text)]
+            )
+        )
+
+
+async def reply_flex(reply_token: str, flex: dict):
+    """回覆 Flex Message"""
+    async with AsyncApiClient(configuration) as api_client:
+        line_bot_api = AsyncMessagingApi(api_client)
+        await line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[FlexMessage(
+                    alt_text=flex["altText"],
+                    contents=FlexContainer.from_dict(flex["contents"])
+                )]
             )
         )
 
