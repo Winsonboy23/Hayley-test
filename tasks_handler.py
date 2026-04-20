@@ -36,11 +36,16 @@ async def get_all_tasks() -> list:
 
     tasks = []
     for tl in tasklists:
+        print(f"[TASKS] 清單：{tl.get('title')} id={tl['id']}", flush=True)
         result = service.tasks().list(
             tasklist=tl["id"],
             showCompleted=False,
-            showHidden=False
+            showHidden=True,
+            maxResults=100
         ).execute()
+        print(f"[TASKS] 項目數：{len(result.get('items', []))}", flush=True)
+        for item in result.get("items", []):
+            print(f"[TASKS]   - {item.get('title')} status={item.get('status')}", flush=True)
         for task in result.get("items", []):
             title = task.get("title", "").strip()
             if not title:
