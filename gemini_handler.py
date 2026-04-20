@@ -1,8 +1,8 @@
-import google.generativeai as genai
+from google import genai
 import os
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.5-flash-preview-04-17")
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+MODEL = "gemini-2.5-flash-preview-04-17"
 
 HALEY_STYLE_PROMPT = """
 你是海莉的 AI 助理，海莉是 PAUL 法式烘焙的 Branding & Marketing 主管。
@@ -28,7 +28,7 @@ async def summarize_email(email_content: str) -> str:
 
 {email_content}
 """
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
 
 
@@ -39,14 +39,14 @@ async def generate_reply_draft(
     template_content: str = None
 ) -> str:
     """根據來信內容生成回覆草稿"""
-    
+
     template_section = ""
     if template_content:
         template_section = f"""
 【參考模板】
 {template_content}
 """
-    
+
     prompt = f"""
 {HALEY_STYLE_PROMPT}
 
@@ -62,13 +62,13 @@ async def generate_reply_draft(
 請用海莉的語氣，寫一封回覆這封信的草稿。
 只輸出信件內文，不要加任何說明或前綴詞。
 """
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
 
 
 async def answer_work_question(question: str, context: str = "") -> str:
     """回答海莉的工作相關問題"""
-    
+
     work_scope = """
 你只能回答以下工作範圍內的問題：
 1. Gmail 相關（信件數量、信件內容摘要、草稿狀態）
@@ -78,7 +78,7 @@ async def answer_work_question(question: str, context: str = "") -> str:
 如果問題超出以上範圍，請回覆：
 「這個問題超出我的工作範圍，我只能協助處理信件、行程和聯絡人相關事項。」
 """
-    
+
     prompt = f"""
 {work_scope}
 
@@ -90,21 +90,21 @@ async def answer_work_question(question: str, context: str = "") -> str:
 
 請用繁體中文簡潔回答，語氣親切專業。
 """
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
 
 
 async def summarize_schedule(events: list) -> str:
     """生成明日行程總結"""
-    
+
     if not events:
         return "明天沒有排定的行程，可以好好休息或處理其他事務！"
-    
+
     events_text = "\n".join([
         f"- {e.get('time', '')} {e.get('summary', '')} {('｜' + e.get('location', '')) if e.get('location') else ''}"
         for e in events
     ])
-    
+
     prompt = f"""
 請用繁體中文整理以下明日行程，格式如下：
 
@@ -120,5 +120,5 @@ async def summarize_schedule(events: list) -> str:
 
 只輸出整理好的內容，不要加任何說明。
 """
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
