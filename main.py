@@ -13,23 +13,23 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from app.gmail_handler import (
+from gmail_handler import (
     get_email_by_id, create_draft,
     count_today_emails, count_drafts
 )
-from app.calendar_handler import (
+from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
     get_events_by_date_range
 )
-from app.notion_handler import (
+from notion_handler import (
     find_contact_by_email, get_template_by_role,
     get_contact_info_by_name
 )
-from app.gemini_handler import (
+from gemini_handler import (
     summarize_email, generate_reply_draft,
     answer_work_question, summarize_schedule
 )
-from app.line_handler import (
+from line_handler import (
     push_message, reply_message, handler,
     format_new_email_notification,
     format_event_reminder, format_daily_summary
@@ -102,7 +102,7 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
 async def process_new_email(history_id: str):
     """處理新進信件的核心流程"""
     try:
-        from app.gmail_handler import get_gmail_service
+        from gmail_handler import get_gmail_service
         service = get_gmail_service()
         
         # 取得最新一封信
