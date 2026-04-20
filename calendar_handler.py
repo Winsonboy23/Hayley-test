@@ -25,12 +25,16 @@ def get_calendar_service():
     return build("calendar", "v3", credentials=creds)
 
 
+EXCLUDED_CALENDARS = {"台灣的節慶假日", "台灣節慶假日", "Holidays in Taiwan"}
+
 def get_all_calendars(service) -> dict:
     """回傳 {cal_id: cal_name} 的對照表，email 類名稱轉為「主要日曆」"""
     result = service.calendarList().list().execute()
     calendars = {}
     for cal in result.get("items", []):
         name = cal.get("summary", cal["id"])
+        if name in EXCLUDED_CALENDARS:
+            continue
         if "@" in name:
             name = "主要日曆"
         calendars[cal["id"]] = name
