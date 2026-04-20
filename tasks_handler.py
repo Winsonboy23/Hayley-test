@@ -20,7 +20,7 @@ def get_tasks_service():
     creds = None
     token_json = os.getenv("GOOGLE_TOKEN_JSON")
     if token_json:
-        creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+        creds = Credentials.from_authorized_user_info(json.loads(token_json))
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
