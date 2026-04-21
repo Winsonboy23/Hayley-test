@@ -553,3 +553,151 @@ def build_flex_morning_summary(calendar_list: list, event_list: list, unread_cou
         "altText": f"☀️ 早安！今天 {total} 件行程・未讀 {unread_count} 封",
         "contents": bubble
     }
+
+
+# ── Email 通知 Flex 卡片 ───────────────────────────────────────────
+
+_IMPORTANCE_MAP = {
+    "high":   {"emoji": "🔴", "label": "高", "color": "#c62828", "bg": "#ffebee"},
+    "medium": {"emoji": "🟡", "label": "中", "color": "#e65100", "bg": "#fff3e0"},
+    "low":    {"emoji": "⚪", "label": "低", "color": "#757575", "bg": "#f5f5f5"},
+}
+
+
+def build_flex_email_notification(
+    sender_name: str,
+    subject: str,
+    is_unknown: bool,
+    message_id: str = "",
+    sender_role: str = "",
+    sender_unit: str = "",
+    draft_ready: bool = False,
+    importance: str = "",
+    reason: str = "",
+    should_reply: bool = False,
+) -> dict:
+    """Email 通知卡片：已知聯絡人顯示草稿提示，陌生人顯示重要度 + 起草按鈕"""
+
+    # 寄件人顯示名稱
+    if sender_role and sender_unit:
+        sender_display = f"{sender_name}（{sender_unit} {sender_role}）"
+    elif sender_role:
+        sender_display = f"{sender_name}（{sender_role}）"
+    else:
+        sender_display = sender_name
+
+    imp = _IMPORTANCE_MAP.get(importance, {})
+
+    body = []
+
+    # 寄件人列
+    sender_contents = [
+        {"type": "text", "text": "寄件人", "size": "xs", "color": "#888888", "flex": 0},
+        {"type": "text", "text": sender_display, "size": "sm", "color": "#222222",
+         "flex": 1, "wrap": True},
+    ]
+    if is_unknown:
+        sender_contents.append({"type": "text", "text": "⚠️", "size": "sm", "flex": 0})
+    body.append({
+        "type": "box", "layout": "horizontal", "spacing": "sm",
+        "paddingTop": "12px", "paddingStart": "14px", "paddingEnd": "14px",
+        "contents": sender_contents
+    })
+
+    # 主旨列
+    body.append({
+        "type": "box", "layout": "horizontal", "spacing": "sm",
+        "paddingTop": "6px", "paddingBottom": "4px",
+        "paddingStart": "14px", "paddingEnd": "14px",
+        "contents": [
+            {"type": "text", "text": "主旨", "size": "xs", "color": "#888888", "flex": 0},
+            {"type": "text", "text": subject, "size": "sm", "color": "#333333",
+             "flex": 1, "wrap": True},
+        ]
+    })
+
+    # 重要度列（陌生人）
+    if is_unknown and importance and imp:
+        body.append({"type": "separator", "margin": "sm", "color": "#f0f0f0"})
+        body.append({
+            "type": "box", "layout": "horizontal", "spacing": "sm",
+            "paddingTop": "10px", "paddingBottom": "4px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {
+                    "type": "box", "layout": "vertical", "flex": 0,
+                    "backgroundColor": imp["bg"], "cornerRadius": "4px",
+                    "paddingTop": "2px", "paddingBottom": "2px",
+                    "paddingStart": "8px", "paddingEnd": "8px",
+                    "contents": [{"type": "text", "text": f"{imp['emoji']} 重要度 {imp['label']}",
+                                  "size": "xxs", "color": imp["color"], "weight": "bold"}]
+                },
+                {"type": "text", "text": reason, "size": "xs",
+                 "color": "#666666", "flex": 1, "wrap": True}
+            ]
+        })
+
+    body.append({"type": "box", "layout": "vertical", "height": "8px", "contents": []})
+
+    # Footer
+    if draft_ready:
+        footer = {
+            "type": "box", "layout": "vertical",
+            "backgroundColor": "#e8f5e9", "paddingAll": "12px",
+            "contents": [{"type": "text", "text": "✉️ 草稿已備妥，請至 Gmail 確認",
+                          "size": "xs", "color": "#2e7d32", "align": "center"}]
+        }
+    elif is_unknown and should_reply:
+        footer = {
+            "type": "box", "layout": "vertical", "paddingAll": "10px",
+            "contents": [{
+                "type": "button",
+                "style": "primary",
+                "color": "#1a73e8",
+                "height": "sm",
+                "action": {
+                    "type": "postback",
+                    "label": "✍️ 幫我起草回信",
+                    "data": f"action=draft&id={message_id}",
+                    "displayText": "幫我起草這封信的回信"
+                }
+            }]
+        }
+    else:
+        footer = None
+
+    # Header 顏色
+    if is_unknown:
+        header_color = {"high": "#c62828", "medium": "#e65100", "low": "#546e7a"}.get(importance, "#546e7a")
+        subtitle = "陌生寄件人"
+    else:
+        header_color = "#1a73e8"
+        subtitle = "聯絡人來信"
+
+    bubble = {
+        "type": "bubble",
+        "size": "kilo",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "backgroundColor": header_color, "paddingAll": "14px",
+            "contents": [
+                {"type": "text", "text": "📩 新信件", "color": "#ffffff",
+                 "size": "md", "weight": "bold"},
+                {"type": "text", "text": subtitle, "color": "#ffffff99",
+                 "size": "xxs", "margin": "xs"}
+            ]
+        },
+        "body": {
+            "type": "box", "layout": "vertical",
+            "paddingAll": "0px", "spacing": "none",
+            "contents": body
+        }
+    }
+    if footer:
+        bubble["footer"] = footer
+
+    return {
+        "type": "flex",
+        "altText": f"📩 新信件：{sender_name}",
+        "contents": bubble
+    }

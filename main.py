@@ -27,7 +27,8 @@ from calendar_handler import (
 )
 from flex_builder import (
     build_flex_single, build_flex_carousel,
-    build_flex_evening_push, build_flex_morning_summary
+    build_flex_evening_push, build_flex_morning_summary,
+    build_flex_email_notification,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -35,7 +36,7 @@ from notion_handler import (
     get_contact_info_by_name
 )
 from gemini_handler import (
-    generate_reply_draft,
+    generate_reply_draft, classify_email_importance,
     answer_work_question, summarize_schedule
 )
 from line_handler import (
@@ -50,6 +51,9 @@ scheduler = AsyncIOScheduler(timezone="Asia/Taipei")
 
 # 已處理的信件 ID（防止 Pub/Sub 重複推送）
 _processed_email_ids: set = set()
+
+# 等待起草的陌生信件（message_id → {email, expires_at}）
+_pending_drafts: dict = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -187,61 +191,77 @@ async def process_new_email(history_id: str):
         is_unknown = contact is None
         print(f"[DEBUG] Notion 查詢結果：{'找到' if contact else '陌生人'}", flush=True)
         
-        if contact:
+        if is_unknown:
+            # 陌生人 → AI 判斷重要性
+            sender_name = email["from_name"] or email["from_email"]
+            try:
+                classification = await classify_email_importance(
+                    subject=email["subject"],
+                    email_body=email["body"]
+                )
+            except Exception:
+                classification = {"importance": "medium", "should_reply": True, "reason": "無法自動判斷", "category": "其他"}
+
+            importance   = classification.get("importance", "medium")
+            should_reply = classification.get("should_reply", True)
+            reason       = classification.get("reason", "")
+
+            # 若需要回覆，暫存等待使用者按按鈕
+            if should_reply:
+                _pending_drafts[email_id] = {
+                    "email": email,
+                    "thread_id": latest_message.get("threadId", email_id),
+                    "expires_at": time.time() + 86400
+                }
+
+            flex = build_flex_email_notification(
+                sender_name=sender_name,
+                subject=email["subject"],
+                is_unknown=True,
+                message_id=email_id,
+                importance=importance,
+                reason=reason,
+                should_reply=should_reply,
+            )
+            await push_flex(flex)
+
+        else:
+            # 已知聯絡人 → 自動生成草稿
             sender_name = contact["name"]
             sender_role = contact["role"]
             sender_unit = contact["unit"]
-        else:
-            sender_name = email["from_name"] or email["from_email"]
-            sender_role = "未知"
-            sender_unit = ""
-        
-        # 陌生人不生成草稿，只通知
-        if is_unknown:
-            await push_message(format_new_email_notification(
+
+            template = await get_template_by_role(sender_role)
+            template_content = template["content"] if template else None
+
+            draft_body = await generate_reply_draft(
+                email_content=email["body"],
                 sender_name=sender_name,
-                sender_role="未知",
-                sender_unit="",
+                sender_role=sender_role,
+                template_content=template_content
+            )
+
+            subject = email["subject"]
+            if not subject.startswith("Re:"):
+                subject = f"Re: {subject}"
+
+            thread_id = latest_message.get("threadId", email_id)
+            await create_draft(
+                to_email=email["from_email"],
+                subject=subject,
+                body=draft_body,
+                reply_to_id=thread_id
+            )
+
+            flex = build_flex_email_notification(
+                sender_name=sender_name,
                 subject=email["subject"],
-                is_unknown=True
-            ))
-            return
-
-        # 查詢對應模板
-        template = await get_template_by_role(sender_role)
-        template_content = template["content"] if template else None
-
-        # 生成回覆草稿
-        draft_body = await generate_reply_draft(
-            email_content=email["body"],
-            sender_name=sender_name,
-            sender_role=sender_role,
-            template_content=template_content
-        )
-
-        # 決定回覆主旨
-        subject = email["subject"]
-        if not subject.startswith("Re:"):
-            subject = f"Re: {subject}"
-
-        # 存入 Gmail 草稿（用 threadId 而非 messageId）
-        thread_id = latest_message.get("threadId", message_id)
-        await create_draft(
-            to_email=email["from_email"],
-            subject=subject,
-            body=draft_body,
-            reply_to_id=thread_id
-        )
-        
-        # LINE 通知海莉
-        notification_text = format_new_email_notification(
-            sender_name=sender_name,
-            sender_role=sender_role,
-            sender_unit=sender_unit,
-            subject=email["subject"],
-            is_unknown=is_unknown
-        )
-        await push_message(notification_text)
+                is_unknown=False,
+                sender_role=sender_role,
+                sender_unit=sender_unit,
+                draft_ready=True,
+            )
+            await push_flex(flex)
         
     except Exception as e:
         import traceback
@@ -279,6 +299,12 @@ async def line_webhook(request: Request, background_tasks: BackgroundTasks):
                 handle_line_message,
                 event["message"]["text"],
                 event["replyToken"]
+            )
+        elif event.get("type") == "postback":
+            background_tasks.add_task(
+                handle_postback,
+                event.get("postback", {}).get("data", ""),
+                event.get("replyToken", "")
             )
     
     return {"status": "ok"}
@@ -470,6 +496,54 @@ async def check_upcoming_events():
 
 
 # ── 手動觸發測試用 ──
+async def handle_postback(data: str, reply_token: str):
+    """處理 LINE 按鈕點擊（postback）"""
+    try:
+        params = dict(p.split("=", 1) for p in data.split("&") if "=" in p)
+        if params.get("action") != "draft":
+            return
+
+        message_id = params.get("id", "")
+        pending = _pending_drafts.get(message_id)
+
+        if not pending or time.time() > pending.get("expires_at", 0):
+            _pending_drafts.pop(message_id, None)
+            await reply_message(reply_token, "⚠️ 此信件已過期（超過 24 小時），請直接在 Gmail 回覆")
+            return
+
+        await reply_message(reply_token, "⏳ 草稿生成中，請稍候…")
+
+        email = pending["email"]
+        thread_id = pending.get("thread_id", message_id)
+        sender_name = email["from_name"] or email["from_email"]
+
+        draft_body = await generate_reply_draft(
+            email_content=email["body"],
+            sender_name=sender_name,
+            sender_role="",
+            template_content=None
+        )
+
+        subject = email["subject"]
+        if not subject.startswith("Re:"):
+            subject = f"Re: {subject}"
+
+        await create_draft(
+            to_email=email["from_email"],
+            subject=subject,
+            body=draft_body,
+            reply_to_id=thread_id
+        )
+
+        _pending_drafts.pop(message_id, None)
+        await push_message(f"✉️ 草稿已備妥！\n寄件人：{sender_name}\n主旨：{email['subject']}\n\n請至 Gmail 確認")
+
+    except Exception as e:
+        import traceback
+        print(f"handle_postback error: {e}\n{traceback.format_exc()}", flush=True)
+        await push_message("⚠️ 草稿生成失敗，請稍後再試")
+
+
 async def renew_gmail_watch():
     try:
         result = await setup_gmail_watch()

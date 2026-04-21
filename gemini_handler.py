@@ -66,6 +66,41 @@ async def generate_reply_draft(
     return response.text.strip()
 
 
+async def classify_email_importance(subject: str, email_body: str) -> dict:
+    """判斷陌生寄件人信件的重要性與是否需要回覆"""
+    prompt = f"""你是海莉的 AI 助理，海莉是 PAUL 法式烘焙的 Branding & Marketing 主管。
+
+請判斷以下信件對海莉的重要性：
+
+主旨：{subject}
+內文：{email_body[:1500]}
+
+請只回覆 JSON，不要加任何說明：
+{{
+  "importance": "high" 或 "medium" 或 "low",
+  "should_reply": true 或 false,
+  "reason": "一句話說明原因（15字以內）",
+  "category": "合作邀約" 或 "媒體採訪" 或 "廠商詢問" 或 "客訴" 或 "行政通知" 或 "廣告行銷" 或 "其他"
+}}
+
+判斷標準：
+- high + should_reply true：需要海莉親自處理（合作、報價、媒體、客戶問題、活動邀約）
+- medium + should_reply true：可稍後處理，非緊急
+- low + should_reply false：電子報、廣告、系統通知、無需回覆
+"""
+    try:
+        response = client.models.generate_content(model=MODEL, contents=prompt)
+        text = response.text.strip()
+        if "```" in text:
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        import json
+        return json.loads(text.strip())
+    except Exception:
+        return {"importance": "medium", "should_reply": True, "reason": "無法自動判斷", "category": "其他"}
+
+
 async def answer_work_question(question: str, context: str = "") -> str:
     """回答海莉的工作相關問題"""
 
