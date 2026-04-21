@@ -60,6 +60,8 @@ async def generate_reply_draft(
 {email_content}
 
 請用海莉的語氣，寫一封回覆這封信的草稿。
+【重要】回覆語言規則：請偵測來信使用的語言，並用相同語言回覆。
+例如對方用英文寫信 → 用英文回；對方用中文 → 用繁體中文回；對方混用 → 以主要語言為準。
 只輸出信件內文，不要加任何說明或前綴詞。
 """
     response = client.models.generate_content(model=MODEL, contents=prompt)
