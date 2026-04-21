@@ -418,19 +418,6 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_message(reply_token, "請輸入：聯絡人 姓名")
             return
 
-        # ── 待辦事項 ──
-        if t in ["待辦事項", "待辦", "任務", "tasks"]:
-            try:
-                tasks = await get_all_tasks()
-                if not tasks:
-                    await reply_message(reply_token, "✅ 目前沒有待辦事項")
-                else:
-                    await reply_flex(reply_token, build_flex_tasks(tasks))
-            except Exception as e:
-                print(f"tasks error: {e}")
-                await reply_message(reply_token, "⚠️ 待辦事項需要重新授權 Google Tasks 權限，請聯絡管理員。")
-            return
-
         # ── 指令清單 / 不認識的輸入 ──
         await reply_flex(reply_token, build_flex_menu())
 
