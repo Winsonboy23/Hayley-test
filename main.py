@@ -48,6 +48,8 @@ from linebot.v3.exceptions import InvalidSignatureError
 
 scheduler = AsyncIOScheduler(timezone="Asia/Taipei")
 
+# 已處理的信件 ID（防止 Pub/Sub 重複推送）
+_processed_email_ids: set = set()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -242,8 +244,8 @@ async def process_new_email(history_id: str):
         await push_message(notification_text)
         
     except Exception as e:
-        print(f"process_new_email error: {e}")
-        await push_message(f"⚠️ 處理新信件時發生錯誤：{str(e)}")
+        import traceback
+        print(f"process_new_email error: {e}\n{traceback.format_exc()}", flush=True)
 
 
 # ── LINE Webhook（接收海莉的訊息）──
