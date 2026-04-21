@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>海莉 AI 助理 — 功能指南</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Noto Sans TC", sans-serif;
+      background: #f5f7fa;
+      color: #2d2d2d;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+      color: white;
+      text-align: center;
+      padding: 64px 24px 80px;
+    }
+    .hero-icon { font-size: 56px; margin-bottom: 16px; }
+    .hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+    .hero p  { font-size: 16px; opacity: .85; max-width: 480px; margin: 0 auto; }
+
+    /* ── TOC ── */
+    .toc {
+      max-width: 900px;
+      margin: -28px auto 0;
+      padding: 0 24px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .toc a {
+      background: white;
+      border-radius: 20px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a73e8;
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,.1);
+      transition: background .15s, color .15s;
+    }
+    .toc a:hover { background: #1a73e8; color: white; }
+
+    /* ── Section ── */
+    section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 56px 24px 0;
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    .section-title span { font-size: 28px; }
+    .section-sub {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 24px;
+      margin-top: 4px;
+    }
+
+    /* ── Command list ── */
+    .cmd-group { margin-bottom: 32px; }
+    .cmd-group-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #aaa;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .cmd-list { display: flex; flex-direction: column; gap: 8px; }
+    .cmd-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: white;
+      border-radius: 12px;
+      padding: 13px 18px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.06);
+    }
+    .cmd-tag {
+      background: #e8f0fe;
+      color: #1a73e8;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+      font-family: monospace;
+      flex-shrink: 0;
+    }
+    .cmd-info { font-size: 13px; color: #555; line-height: 1.5; }
+    .cmd-info strong { color: #222; }
+
+    /* ── Schedule cards ── */
+    .schedule-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .schedule-card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    }
+    .schedule-header {
+      padding: 16px 20px 14px;
+      color: white;
+    }
+    .schedule-header .time { font-size: 28px; font-weight: 800; margin-bottom: 2px; }
+    .schedule-header .label { font-size: 14px; font-weight: 600; opacity: .9; }
+    .schedule-body { padding: 16px 20px; }
+    .schedule-item {
+      display: flex;
+      gap: 8px;
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 8px;
+      align-items: flex-start;
+      line-height: 1.5;
+    }
+    .schedule-item:last-child { margin-bottom: 0; }
+    .schedule-item .dot { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Email flow ── */
+    .email-flow-wrap {
+      background: white;
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    }
+    .trigger-bar {
+      text-align: center;
+      padding: 14px 20px;
+      background: #e8f0fe;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 15px;
+      color: #1558b0;
+      margin-bottom: 24px;
+    }
+    .mini-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      background: #fafafa;
+      border-radius: 12px;
+      padding: 20px 16px;
+      margin-bottom: 24px;
+    }
+    .mini-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 6px 12px;
+    }
+    .mini-bubble {
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    .mini-bubble.blue   { background: #e8f0fe; }
+    .mini-bubble.purple { background: #f3e5f5; }
+    .mini-bubble.orange { background: #fff3e0; }
+    .mini-step p { font-size: 12px; color: #555; line-height: 1.4; }
+    .mini-step strong { display: block; font-size: 12px; color: #222; margin-bottom: 2px; font-weight: 700; }
+    .mini-arrow { font-size: 18px; color: #ccc; padding: 0 2px; margin-bottom: 20px; }
+
+    .branch-paths {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .branch-path {
+      border-radius: 12px;
+      padding: 18px 16px;
+    }
+    .branch-path.known   { background: #e8f5e9; border: 1.5px solid #a5d6a7; }
+    .branch-path.unknown { background: #fff8e1; border: 1.5px solid #ffe082; }
+    .branch-path h4 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+    .branch-path.known   h4 { color: #2e7d32; }
+    .branch-path.unknown h4 { color: #f57f17; }
+    .step-item {
+      display: flex;
+      gap: 8px;
+      font-size: 13px;
+      color: #444;
+      margin-bottom: 8px;
+      align-items: flex-start;
+      line-height: 1.5;
+    }
+    .step-item:last-child { margin-bottom: 0; }
+    .step-num {
+      background: white;
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .known   .step-num { color: #2e7d32; }
+    .unknown .step-num { color: #f57f17; }
+
+    .importance-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .imp-badge {
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .imp-high   { background: #ffebee; color: #c62828; }
+    .imp-mid    { background: #fff3e0; color: #e65100; }
+    .imp-low    { background: #f5f5f5; color: #757575; }
+
+    /* ── Notion tables ── */
+    .notion-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .notion-card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    }
+    .notion-header {
+      background: #f5f5f5;
+      padding: 14px 18px;
+      font-weight: 700;
+      font-size: 14px;
+      border-bottom: 1px solid #eee;
+    }
+    .notion-row {
+      padding: 11px 18px;
+      font-size: 13px;
+      border-bottom: 1px solid #f5f5f5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .notion-row:last-child { border-bottom: none; }
+    .notion-row .field { font-weight: 600; color: #333; }
+    .notion-row .desc  { color: #888; font-size: 12px; text-align: right; max-width: 55%; }
+    .badge {
+      display: inline-block;
+      background: #e53935;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .tip-row {
+      padding: 10px 18px;
+      background: #fffde7;
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* ── Cal cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+      transition: transform .15s;
+    }
+    .card:hover { transform: translateY(-2px); }
+    .card-icon { font-size: 28px; margin-bottom: 10px; }
+    .card-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: #1a73e8; }
+    .card-desc  { font-size: 12px; color: #777; line-height: 1.6; }
+
+    /* ── LINE preview mockup ── */
+    .line-preview {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 320px;
+    }
+    .line-bubble {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+      font-size: 12px;
+    }
+    .lb-header {
+      padding: 10px 14px;
+      color: white;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .lb-body { padding: 10px 14px; color: #444; line-height: 1.6; }
+    .lb-footer {
+      padding: 8px 14px;
+      font-size: 11px;
+      border-top: 1px solid #f0f0f0;
+    }
+    .lb-btn {
+      display: block;
+      background: #1a73e8;
+      color: white;
+      text-align: center;
+      border-radius: 6px;
+      padding: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 8px 14px 10px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 56px 24px 40px;
+      color: #bbb;
+      font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+      .branch-paths, .notion-grid { grid-template-columns: 1fr; }
+      .mini-flow { flex-direction: column; }
+      .mini-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-icon">🤖</div>
+  <h1>海莉 AI 助理</h1>
+  <p>LINE 智慧秘書 — 行事曆、信件自動處理，每天主動通知</p>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <a href="#cmd">💬 LINE 指令</a>
+  <a href="#push">🔔 自動推播</a>
+  <a href="#email">✉️ 新信件處理</a>
+  <a href="#notion">🗂 Notion 資料庫</a>
+  <a href="#cal">📆 行事曆說明</a>
+</div>
+
+<!-- ── 1. LINE 指令 ── -->
+<section id="cmd">
+  <div class="section-title"><span>💬</span> LINE 指令</div>
+  <p class="section-sub">直接在 LINE 對話框輸入以下文字即可查詢，系統會以卡片方式回應。</p>
+
+  <div class="cmd-group">
+    <div class="cmd-group-label">📅 行事曆</div>
+    <div class="cmd-list">
+      <div class="cmd-row">
+        <span class="cmd-tag">今日行程</span>
+        <div class="cmd-info">今天所有行程，依日曆顏色顯示（也可輸入「今天」）</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">明日行程</span>
+        <div class="cmd-info">明天所有行程（也可輸入「明天」）</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">本週行程</span>
+        <div class="cmd-info">未來 7 天行程，依日曆分頁，<strong>左右滑動</strong>切換</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">本月行程</span>
+        <div class="cmd-info">本月所有行程，依日曆分頁</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">下個月行程</span>
+        <div class="cmd-info">下個月所有行程</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">5月行程</span>
+        <div class="cmd-info">指定任意月份，1–12 月皆可，例如「<strong>8月行程</strong>」</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">搜尋 關鍵字</span>
+        <div class="cmd-info">跨所有日曆搜尋行程，例如「<strong>搜尋 會議</strong>」</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmd-group">
+    <div class="cmd-group-label">📩 信件</div>
+    <div class="cmd-list">
+      <div class="cmd-row">
+        <span class="cmd-tag">信件</span>
+        <div class="cmd-info">今天收到幾封信 ＋ 草稿區幾封待發，以卡片方式顯示</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 2. 自動推播 ── -->
+<section id="push">
+  <div class="section-title"><span>🔔</span> 每日自動推播</div>
+  <p class="section-sub">不需主動查詢，系統會在固定時間或特定條件下主動推送給你。</p>
+
+  <div class="schedule-row">
+
+    <div class="schedule-card">
+      <div class="schedule-header" style="background:linear-gradient(135deg,#fb8c00,#f4511e);">
+        <div class="time">08:00</div>
+        <div class="label">☀️ 早晨摘要</div>
+      </div>
+      <div class="schedule-body">
+        <div class="schedule-item"><span class="dot">📅</span>今天幾件行程（藍色方塊）</div>
+        <div class="schedule-item"><span class="dot">📩</span>收件匣未讀幾封（紅色方塊）</div>
+        <div class="schedule-item"><span class="dot">📋</span>今日行程列表，最多顯示 5 筆</div>
+      </div>
+    </div>
+
+    <div class="schedule-card">
+      <div class="schedule-header" style="background:linear-gradient(135deg,#1a73e8,#0d47a1);">
+        <div class="time">18:00</div>
+        <div class="label">📅 晚間推播</div>
+      </div>
+      <div class="schedule-body">
+        <div class="schedule-item"><span class="dot">📅</span>明天幾件行程（藍色方塊）</div>
+        <div class="schedule-item"><span class="dot">📩</span>收件匣未讀幾封（紅色方塊）</div>
+        <div class="schedule-item"><span class="dot">📋</span>明日行程列表，最多顯示 5 筆</div>
+      </div>
+    </div>
+
+    <div class="schedule-card">
+      <div class="schedule-header" style="background:linear-gradient(135deg,#43a047,#1b5e20);">
+        <div class="time">隨時</div>
+        <div class="label">⏰ 活動提醒</div>
+      </div>
+      <div class="schedule-body">
+        <div class="schedule-item"><span class="dot">🔔</span>活動開始前 <strong>1 小時</strong>自動提醒</div>
+        <div class="schedule-item"><span class="dot">📍</span>顯示活動名稱、時間、地點</div>
+        <div class="schedule-item"><span class="dot">✅</span>每場活動只提醒一次，不重複</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 3. 新信件自動處理 ── -->
+<section id="email">
+  <div class="section-title"><span>✉️</span> 新信件自動處理</div>
+  <p class="section-sub">Gmail 收到新信時，系統自動判斷寄件人並分流處理。</p>
+
+  <div class="email-flow-wrap">
+
+    <!-- Trigger -->
+    <div class="trigger-bar">📬 Gmail 收到新信</div>
+
+    <!-- Mini flow -->
+    <div class="mini-flow">
+      <div class="mini-step">
+        <div class="mini-bubble blue">📧</div>
+        <strong>收到信件</strong>
+        <p>系統自動偵測</p>
+      </div>
+      <div class="mini-arrow">→</div>
+      <div class="mini-step">
+        <div class="mini-bubble purple">🔍</div>
+        <strong>比對聯絡人</strong>
+        <p>查詢 Notion<br>聯絡人資料庫</p>
+      </div>
+      <div class="mini-arrow">→</div>
+      <div class="mini-step">
+        <div class="mini-bubble orange">🤖</div>
+        <strong>AI 分流</strong>
+        <p>已知 or 陌生<br>寄件人？</p>
+      </div>
+    </div>
+
+    <!-- Branch -->
+    <div class="branch-paths">
+
+      <div class="branch-path known">
+        <h4>✅ 已知聯絡人（在 Notion 名單中）</h4>
+        <div class="step-item">
+          <span class="step-num">1</span>
+          根據對方職稱，找對應信件模板
+        </div>
+        <div class="step-item">
+          <span class="step-num">2</span>
+          AI 自動生成回覆草稿
+        </div>
+        <div class="step-item">
+          <span class="step-num">3</span>
+          草稿存入 Gmail 草稿夾
+        </div>
+        <div class="step-item">
+          <span class="step-num">4</span>
+          LINE 推播藍色通知卡片<br>
+          <span style="color:#2e7d32;font-size:12px;margin-top:2px;display:block;">✉️ 草稿已備妥，請至 Gmail 確認</span>
+        </div>
+      </div>
+
+      <div class="branch-path unknown">
+        <h4>⚠️ 陌生寄件人（不在 Notion 名單）</h4>
+        <div class="step-item">
+          <span class="step-num">1</span>
+          AI 判斷信件重要程度
+        </div>
+        <div class="importance-row">
+          <span class="imp-badge imp-high">🔴 高</span>
+          <span class="imp-badge imp-mid">🟡 中</span>
+          <span class="imp-badge imp-low">⚪ 低</span>
+        </div>
+        <div class="step-item" style="margin-top:10px;">
+          <span class="step-num">2</span>
+          LINE 推播橘色通知卡片（含重要度 + AI 判斷原因）
+        </div>
+        <div class="step-item">
+          <span class="step-num">3</span>
+          若需要回覆，卡片顯示按鈕：
+          <span style="display:block;background:#1a73e8;color:white;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;margin-top:4px;width:fit-content;">✍️ 幫我起草回信</span>
+        </div>
+        <div class="step-item">
+          <span class="step-num">4</span>
+          按下按鈕後，AI 生成草稿並存入 Gmail
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── 4. Notion 資料庫 ── -->
+<section id="notion">
+  <div class="section-title"><span>🗂</span> Notion 資料庫設定</div>
+  <p class="section-sub">需維護兩個 Notion 資料庫，系統才能正確比對寄件人並生成草稿。</p>
+
+  <div class="notion-grid">
+
+    <div class="notion-card">
+      <div class="notion-header">👤 聯絡人資料庫</div>
+      <div class="notion-row">
+        <span class="field">姓名</span>
+        <span class="desc">聯絡人顯示名稱</span>
+      </div>
+      <div class="notion-row">
+        <span class="field">Email <span class="badge">必填</span></span>
+        <span class="desc">用於比對寄件人</span>
+      </div>
+      <div class="notion-row">
+        <span class="field">職稱 / 角色</span>
+        <span class="desc">需與模板「角色」一致</span>
+      </div>
+      <div class="notion-row">
+        <span class="field">單位</span>
+        <span class="desc">顯示於 LINE 通知</span>
+      </div>
+      <div class="tip-row">💡 新的合作廠商 / 媒體記得加進來</div>
+    </div>
+
+    <div class="notion-card">
+      <div class="notion-header">📝 信件模板資料庫</div>
+      <div class="notion-row">
+        <span class="field">角色 <span class="badge">必填</span></span>
+        <span class="desc">對應聯絡人的職稱</span>
+      </div>
+      <div class="notion-row">
+        <span class="field">模板內容</span>
+        <span class="desc">AI 撰寫草稿的參考風格與範例</span>
+      </div>
+      <div class="tip-row">💡 角色名稱需與聯絡人「職稱」完全相同才能配對</div>
+    </div>
+
+  </div>
+
+  <!-- pairing example -->
+  <div style="margin-top:16px;background:white;border-radius:14px;padding:18px 20px;box-shadow:0 2px 10px rgba(0,0,0,.06);">
+    <p style="font-size:13px;font-weight:700;color:#555;margin-bottom:10px;">📎 角色配對範例</p>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="background:#e8f5e9;border-radius:10px;padding:10px 16px;font-size:13px;">
+        👤 聯絡人：王小明<br>
+        <span style="color:#2e7d32;font-weight:700;">職稱：廠商</span>
+      </div>
+      <div style="font-size:22px;color:#bbb;">→</div>
+      <div style="background:#e8f0fe;border-radius:10px;padding:10px 16px;font-size:13px;">
+        📝 模板：廠商回覆範本<br>
+        <span style="color:#1558b0;font-weight:700;">角色：廠商</span>
+      </div>
+      <div style="font-size:22px;color:#bbb;">→</div>
+      <div style="background:#f3e5f5;border-radius:10px;padding:10px 16px;font-size:13px;color:#6a1b9a;">
+        🤖 AI 套用模板<br>生成草稿
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 5. 行事曆說明 ── -->
+<section id="cal">
+  <div class="section-title"><span>📆</span> 行事曆顯示說明</div>
+  <p class="section-sub">行程卡片與 Google Calendar 完全同步。</p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">🎨</div>
+      <div class="card-title">日曆顏色對應</div>
+      <div class="card-desc">每個 Google Calendar 日曆有獨立顏色，行程圓點顏色與 Google Calendar 設定一致。</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">👆</div>
+      <div class="card-title">左右滑動切換</div>
+      <div class="card-desc">本週 / 本月 / x月行程以輪播呈現，每張卡片代表一個日曆，可左右滑動切換。</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📌</div>
+      <div class="card-title">全天 vs 有時間</div>
+      <div class="card-desc">全天活動顯示「全天」標籤；有指定時間的活動顯示 HH:MM 時間標籤。</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <div class="card-title">跨日曆搜尋</div>
+      <div class="card-desc">「搜尋 關鍵字」涵蓋所有日曆，搜尋範圍為前後各一年。</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>海莉 AI 助理 · FastAPI + Gemini 2.5 Pro + LINE Bot</p>
+  <p style="margin-top:6px;color:#ddd;">有任何問題請聯繫開發者 👋</p>
+</footer>
+
+</body>
+</html>
