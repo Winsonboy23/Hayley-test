@@ -162,6 +162,29 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
         return {"status": "error", "detail": str(e)}
 
 
+# ── 規則前置過濾（避免明顯廣告信消耗 AI token）──
+_SKIP_SUBJECT_KEYWORDS = [
+    "unsubscribe", "newsletter", "no-reply", "noreply", "do-not-reply", "donotreply",
+    "電子報", "訂閱通知", "系統通知", "優惠", "促銷", "折扣", "限時",
+    "notification", "alert", "automated", "auto-reply", "do not reply",
+    "account activity", "security alert", "verify your", "confirm your",
+]
+_SKIP_SENDER_KEYWORDS = [
+    "noreply", "no-reply", "donotreply", "do-not-reply",
+    "newsletter", "notification", "mailer", "automated",
+]
+
+def _is_obviously_low(subject: str, from_email: str) -> bool:
+    """規則判斷是否為明顯低重要度信件，是則跳過 AI，直接忽略"""
+    subject_lower = subject.lower()
+    email_lower = from_email.lower()
+    if any(kw in subject_lower for kw in _SKIP_SUBJECT_KEYWORDS):
+        return True
+    if any(kw in email_lower for kw in _SKIP_SENDER_KEYWORDS):
+        return True
+    return False
+
+
 async def process_new_email(history_id: str):
     """處理新進信件的核心流程"""
     try:
@@ -195,8 +218,14 @@ async def process_new_email(history_id: str):
         print(f"[DEBUG] Notion 查詢結果：{'找到' if contact else '陌生人'}", flush=True)
         
         if is_unknown:
-            # 陌生人 → AI 判斷重要性
             sender_name = email["from_name"] or email["from_email"]
+
+            # 規則前置過濾：明顯廣告 / 系統信 → 直接略過，不消耗 AI token
+            if _is_obviously_low(email["subject"], email["from_email"]):
+                print(f"[FILTER] 規則過濾略過：{email['from_email']} | {email['subject']}", flush=True)
+                return
+
+            # 陌生人 → AI 判斷重要性
             try:
                 classification = await classify_email_importance(
                     subject=email["subject"],
