@@ -3,6 +3,7 @@ import json
 import base64
 import hashlib
 import hmac
+import time
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
@@ -84,6 +85,28 @@ app = FastAPI(title="Haley AI Assistant", lifespan=lifespan)
 # 已提醒過的活動（避免重複通知）
 reminded_events = set()
 
+# Gmail 通知去重快取（避免同一封信重複推播）
+PROCESSED_HISTORY_TTL_SECONDS = 600
+PROCESSED_EMAIL_TTL_SECONDS = 3600
+processed_history_ids = {}
+processed_email_ids = {}
+
+
+def _cleanup_cache(cache: dict, ttl_seconds: int) -> None:
+    now = time.time()
+    expired_keys = [key for key, ts in cache.items() if now - ts > ttl_seconds]
+    for key in expired_keys:
+        cache.pop(key, None)
+
+
+def _mark_once(cache: dict, key: str, ttl_seconds: int) -> bool:
+    """Return True if key already exists in ttl window, else mark and return False."""
+    _cleanup_cache(cache, ttl_seconds)
+    if key in cache:
+        return True
+    cache[key] = time.time()
+    return False
+
 
 # ── 健康檢查 ──
 @app.get("/")
@@ -116,6 +139,10 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
         
         history_id = notification.get("historyId")
         email_address = notification.get("emailAddress")
+
+        if history_id and _mark_once(processed_history_ids, str(history_id), PROCESSED_HISTORY_TTL_SECONDS):
+            print(f"[DEBUG] 略過重複 historyId：{history_id}", flush=True)
+            return {"status": "duplicate_history_ignored"}
         
         if history_id:
             background_tasks.add_task(process_new_email, history_id)
@@ -142,9 +169,15 @@ async def process_new_email(history_id: str):
         messages = results.get("messages", [])
         if not messages:
             return
+
+        latest_message = messages[0]
+        message_id = latest_message["id"]
+        if _mark_once(processed_email_ids, message_id, PROCESSED_EMAIL_TTL_SECONDS):
+            print(f"[DEBUG] 略過重複 messageId：{message_id}", flush=True)
+            return
         
         # 取得信件內容
-        email = await get_email_by_id(messages[0]["id"])
+        email = await get_email_by_id(message_id)
         print(f"[DEBUG] 最新信件：from={email['from_email']} subject={email['subject']}", flush=True)
 
         # 查詢寄件人是否在 Notion 聯絡人名單
@@ -190,7 +223,7 @@ async def process_new_email(history_id: str):
             subject = f"Re: {subject}"
 
         # 存入 Gmail 草稿（用 threadId 而非 messageId）
-        thread_id = messages[0].get("threadId", messages[0]["id"])
+        thread_id = latest_message.get("threadId", message_id)
         await create_draft(
             to_email=email["from_email"],
             subject=subject,
