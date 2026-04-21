@@ -78,7 +78,7 @@ def format_new_email_notification(
     sender_name: str,
     sender_role: str,
     sender_unit: str,
-    summary: str,
+    subject: str,
     is_unknown: bool = False
 ) -> str:
     """格式化新信件通知訊息"""
@@ -97,7 +97,7 @@ def format_new_email_notification(
 
 寄件人：{sender_info}{warning}
 
-摘要：{summary}{draft_note}"""
+主旨：{subject}{draft_note}"""
 
 
 def format_event_reminder(event_name: str, event_time: str, location: str = "") -> str:

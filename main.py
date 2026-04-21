@@ -34,7 +34,7 @@ from notion_handler import (
     get_contact_info_by_name
 )
 from gemini_handler import (
-    summarize_email, generate_reply_draft,
+    generate_reply_draft,
     answer_work_question, summarize_schedule
 )
 from line_handler import (
@@ -161,19 +161,13 @@ async def process_new_email(history_id: str):
             sender_role = "未知"
             sender_unit = ""
         
-        # 生成摘要
-        try:
-            summary = await summarize_email(email["body"])
-        except Exception:
-            summary = "（摘要暫時無法生成，請直接查看信件）"
-
         # 陌生人不生成草稿，只通知
         if is_unknown:
             await push_message(format_new_email_notification(
                 sender_name=sender_name,
                 sender_role="未知",
                 sender_unit="",
-                summary=summary,
+                subject=email["subject"],
                 is_unknown=True
             ))
             return
@@ -209,7 +203,7 @@ async def process_new_email(history_id: str):
             sender_name=sender_name,
             sender_role=sender_role,
             sender_unit=sender_unit,
-            summary=summary,
+            subject=email["subject"],
             is_unknown=is_unknown
         )
         await push_message(notification_text)
