@@ -29,6 +29,9 @@ from flex_builder import (
     build_flex_single, build_flex_carousel,
     build_flex_evening_push, build_flex_morning_summary,
     build_flex_email_notification,
+    build_flex_no_events, build_flex_email_summary,
+    build_flex_contact, build_flex_tasks, build_flex_menu,
+    build_flex_event_reminder, build_flex_draft_ready,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -41,7 +44,7 @@ from gemini_handler import (
 )
 from line_handler import (
     push_message, push_flex, reply_message, reply_flex, handler,
-    format_new_email_notification, format_event_reminder
+    format_new_email_notification
 )
 
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
@@ -321,7 +324,7 @@ async def handle_line_message(text: str, reply_token: str):
         if t in ["今日行程", "今天行程", "今天", "行程"]:
             cal_list, events = await get_flex_today()
             if not events:
-                await reply_message(reply_token, "📅 今天沒有行程")
+                await reply_flex(reply_token, build_flex_no_events("今日"))
             else:
                 await reply_flex(reply_token, build_flex_single(cal_list, events, "今日"))
             return
@@ -330,7 +333,7 @@ async def handle_line_message(text: str, reply_token: str):
         if t in ["明日行程", "明天行程", "明天"]:
             cal_list, events = await get_flex_tomorrow()
             if not events:
-                await reply_message(reply_token, "📅 明天沒有行程")
+                await reply_flex(reply_token, build_flex_no_events("明日"))
             else:
                 await reply_flex(reply_token, build_flex_single(cal_list, events, "明日"))
             return
@@ -339,7 +342,7 @@ async def handle_line_message(text: str, reply_token: str):
         if t in ["本週行程", "這週行程", "這週", "本週"]:
             cal_list, events = await get_flex_range(days=7)
             if not events:
-                await reply_message(reply_token, "📅 本週沒有行程")
+                await reply_flex(reply_token, build_flex_no_events("本週"))
             else:
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, "本週"))
             return
@@ -348,7 +351,7 @@ async def handle_line_message(text: str, reply_token: str):
         if t in ["本月行程", "這個月行程", "本月"]:
             cal_list, events, month = await get_flex_this_month()
             if not events:
-                await reply_message(reply_token, "📅 本月沒有行程")
+                await reply_flex(reply_token, build_flex_no_events(f"{month}月"))
             else:
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             return
@@ -357,7 +360,7 @@ async def handle_line_message(text: str, reply_token: str):
         if t in ["下個月行程", "下月行程", "下個月", "下月"]:
             cal_list, events, month = await get_flex_next_month()
             if not events:
-                await reply_message(reply_token, f"📅 {month}月沒有行程")
+                await reply_flex(reply_token, build_flex_no_events(f"{month}月"))
             else:
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             return
@@ -369,7 +372,7 @@ async def handle_line_message(text: str, reply_token: str):
             if 1 <= month <= 12:
                 cal_list, events = await get_flex_by_month(month)
                 if not events:
-                    await reply_message(reply_token, f"📅 {month}月沒有行程")
+                    await reply_flex(reply_token, build_flex_no_events(f"{month}月"))
                 else:
                     await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             else:
@@ -384,7 +387,8 @@ async def handle_line_message(text: str, reply_token: str):
                 return
             cal_list, events = await search_flex_events(keyword)
             if not events:
-                await reply_message(reply_token, f"找不到含「{keyword}」的行程")
+                await reply_flex(reply_token, build_flex_no_events(
+                    "搜尋結果", extra=f"找不到含「{keyword}」的行程"))
             else:
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"搜尋：{keyword}"))
             return
@@ -393,8 +397,7 @@ async def handle_line_message(text: str, reply_token: str):
         if t in ["信件", "今日信件", "收信", "草稿", "信件狀況"]:
             today_count = await count_today_emails()
             draft_count = await count_drafts()
-            await reply_message(reply_token,
-                f"📩 今天收到 {today_count} 封信\n📝 草稿區有 {draft_count} 封待發")
+            await reply_flex(reply_token, build_flex_email_summary(today_count, draft_count))
             return
 
         # ── 聯絡人查詢：「聯絡人 王小明」 ──
@@ -403,9 +406,12 @@ async def handle_line_message(text: str, reply_token: str):
             if name:
                 contact = await get_contact_info_by_name(name)
                 if contact:
-                    unit = f"｜{contact['unit']}" if contact.get("unit") else ""
-                    await reply_message(reply_token,
-                        f"👤 {contact['name']}（{contact['role']}{unit}）\n📧 {contact['email']}")
+                    await reply_flex(reply_token, build_flex_contact(
+                        name=contact["name"],
+                        role=contact.get("role", ""),
+                        unit=contact.get("unit", ""),
+                        email=contact.get("email", "")
+                    ))
                 else:
                     await reply_message(reply_token, f"找不到「{name}」的聯絡資料")
             else:
@@ -419,33 +425,14 @@ async def handle_line_message(text: str, reply_token: str):
                 if not tasks:
                     await reply_message(reply_token, "✅ 目前沒有待辦事項")
                 else:
-                    lines = ["📋 待辦事項\n"]
-                    for task in tasks:
-                        due = f"｜📅 {task['due']}" if task.get("due") else ""
-                        tl = f"｜📂 {task['list']}" if task.get("list") else ""
-                        lines.append(f"☐ {task['title']}{due}{tl}")
-                    await reply_message(reply_token, "\n".join(lines))
+                    await reply_flex(reply_token, build_flex_tasks(tasks))
             except Exception as e:
                 print(f"tasks error: {e}")
                 await reply_message(reply_token, "⚠️ 待辦事項需要重新授權 Google Tasks 權限，請聯絡管理員。")
             return
 
         # ── 指令清單 / 不認識的輸入 ──
-        MENU = (
-            "📋 可用指令：\n"
-            "・今日行程\n"
-            "・明日行程\n"
-            "・本週行程\n"
-            "・本月行程\n"
-            "・下個月行程\n"
-            "・5月行程（指定月份）\n"
-            "・搜尋 關鍵字\n"
-            "・信件\n"
-            "・聯絡人 姓名\n"
-            "・待辦事項\n"
-            "・指令"
-        )
-        await reply_message(reply_token, MENU)
+        await reply_flex(reply_token, build_flex_menu())
 
     except Exception as e:
         print(f"handle_line_message error: {e}")
@@ -485,12 +472,11 @@ async def check_upcoming_events():
             # 55–65 分鐘內且尚未提醒過
             if 55 <= minutes <= 65 and event_key not in reminded_events:
                 reminded_events.add(event_key)
-                reminder_text = format_event_reminder(
+                await push_flex(build_flex_event_reminder(
                     event_name=event["summary"],
                     event_time=event["time"],
                     location=event.get("location", "")
-                )
-                await push_message(reminder_text)
+                ))
     except Exception as e:
         print(f"check_upcoming_events error: {e}")
 
@@ -536,7 +522,10 @@ async def handle_postback(data: str, reply_token: str):
         )
 
         _pending_drafts.pop(message_id, None)
-        await push_message(f"✉️ 草稿已備妥！\n寄件人：{sender_name}\n主旨：{email['subject']}\n\n請至 Gmail 確認")
+        await push_flex(build_flex_draft_ready(
+            sender_name=sender_name,
+            subject=email["subject"]
+        ))
 
     except Exception as e:
         import traceback

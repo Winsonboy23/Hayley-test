@@ -701,3 +701,373 @@ def build_flex_email_notification(
         "altText": f"📩 新信件：{sender_name}",
         "contents": bubble
     }
+
+
+# ── 無行程空狀態 ──────────────────────────────────────────────────────
+def build_flex_no_events(label: str, extra: str = "") -> dict:
+    """無行程 / 無搜尋結果的空狀態卡片"""
+    body_text = extra if extra else f"{label} 沒有排定的行程"
+    return {
+        "type": "flex",
+        "altText": body_text,
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#1a73e8",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": f"📅 {label}行程",
+                     "color": "#ffffff", "size": "md", "weight": "bold"}
+                ]
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "paddingAll": "24px",
+                "contents": [
+                    {"type": "text", "text": body_text,
+                     "size": "sm", "color": "#888888", "align": "center"},
+                    {"type": "text", "text": "好好休息！☕",
+                     "size": "xs", "color": "#aaaaaa", "align": "center", "margin": "xs"}
+                ]
+            }
+        }
+    }
+
+
+# ── 信件查詢 ──────────────────────────────────────────────────────────
+def build_flex_email_summary(today_count: int, draft_count: int) -> dict:
+    """信件狀況卡片：今日信件 + 待發草稿"""
+    return {
+        "type": "flex",
+        "altText": f"📩 今天收到 {today_count} 封信・草稿 {draft_count} 封",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#1a73e8",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "📩 信件狀況",
+                     "color": "#ffffff", "size": "md", "weight": "bold"}
+                ]
+            },
+            "body": {
+                "type": "box",
+                "layout": "horizontal",
+                "paddingAll": "16px",
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "box", "layout": "vertical", "flex": 1,
+                        "backgroundColor": "#e8f0fe", "cornerRadius": "8px", "paddingAll": "14px",
+                        "contents": [
+                            {"type": "text", "text": str(today_count), "size": "xxl",
+                             "weight": "bold", "color": "#1a73e8", "align": "center"},
+                            {"type": "text", "text": "今日信件", "size": "xxs",
+                             "color": "#555555", "align": "center", "margin": "xs"}
+                        ]
+                    },
+                    {
+                        "type": "box", "layout": "vertical", "flex": 1,
+                        "backgroundColor": "#fff8e1", "cornerRadius": "8px", "paddingAll": "14px",
+                        "contents": [
+                            {"type": "text", "text": str(draft_count), "size": "xxl",
+                             "weight": "bold", "color": "#f57f17", "align": "center"},
+                            {"type": "text", "text": "待發草稿", "size": "xxs",
+                             "color": "#555555", "align": "center", "margin": "xs"}
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+
+
+# ── 聯絡人名片 ────────────────────────────────────────────────────────
+def build_flex_contact(name: str, role: str, unit: str, email: str) -> dict:
+    """聯絡人名片卡片"""
+    if unit and role:
+        subtitle = f"{unit}・{role}"
+    elif role:
+        subtitle = role
+    elif unit:
+        subtitle = unit
+    else:
+        subtitle = ""
+
+    body_contents = [
+        {"type": "text", "text": name, "size": "lg", "weight": "bold", "color": "#222222"}
+    ]
+    if subtitle:
+        body_contents.append(
+            {"type": "text", "text": subtitle, "size": "sm", "color": "#666666", "margin": "xs"}
+        )
+    body_contents.append({"type": "separator", "margin": "md", "color": "#f0f0f0"})
+    body_contents.append({
+        "type": "box", "layout": "horizontal",
+        "margin": "md", "spacing": "sm",
+        "contents": [
+            {"type": "text", "text": "📧", "size": "sm", "flex": 0},
+            {"type": "text", "text": email, "size": "sm", "color": "#1a73e8",
+             "flex": 1, "wrap": True}
+        ]
+    })
+
+    return {
+        "type": "flex",
+        "altText": f"👤 {name}",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#2e7d32",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "👤 聯絡人查詢",
+                     "color": "#ffffff", "size": "md", "weight": "bold"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "16px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+    }
+
+
+# ── 待辦事項 ──────────────────────────────────────────────────────────
+def build_flex_tasks(tasks: list) -> dict:
+    """待辦事項清單卡片"""
+    body_contents = []
+    for i, task in enumerate(tasks):
+        meta_parts = []
+        if task.get("due"):
+            meta_parts.append(f"📅 {task['due']}")
+        if task.get("list"):
+            meta_parts.append(f"📂 {task['list']}")
+
+        item_contents = [
+            {"type": "text", "text": task["title"], "size": "sm",
+             "color": "#222222", "wrap": True}
+        ]
+        if meta_parts:
+            item_contents.append({
+                "type": "text", "text": "  ".join(meta_parts),
+                "size": "xxs", "color": "#999999", "margin": "xs", "wrap": True
+            })
+
+        body_contents.append({
+            "type": "box", "layout": "horizontal",
+            "spacing": "sm",
+            "paddingTop": "10px", "paddingBottom": "10px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {"type": "text", "text": "☐", "size": "sm", "color": "#888888", "flex": 0},
+                {"type": "box", "layout": "vertical", "flex": 1, "contents": item_contents}
+            ]
+        })
+        if i < len(tasks) - 1:
+            body_contents.append(SEPARATOR)
+
+    return {
+        "type": "flex",
+        "altText": f"✅ 待辦事項（{len(tasks)} 項）",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#e65100",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "✅ 待辦事項",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": f"共 {len(tasks)} 項未完成",
+                     "color": "#ffccbc", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+    }
+
+
+# ── 指令選單 ──────────────────────────────────────────────────────────
+def build_flex_menu() -> dict:
+    """可用指令選單卡片"""
+    def _row(icon, cmd, desc):
+        return {
+            "type": "box", "layout": "horizontal",
+            "paddingTop": "9px", "paddingBottom": "9px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "spacing": "sm",
+            "contents": [
+                {"type": "text", "text": icon, "size": "sm", "flex": 0},
+                {"type": "text", "text": cmd, "size": "sm", "color": "#1a73e8",
+                 "weight": "bold", "flex": 0},
+                {"type": "text", "text": desc, "size": "xs", "color": "#888888",
+                 "flex": 1, "wrap": True, "align": "end"}
+            ]
+        }
+
+    commands = [
+        ("📅", "今日行程", "今天的行程"),
+        ("📅", "明日行程", "明天的行程"),
+        ("📅", "本週行程", "未來 7 天"),
+        ("📅", "本月行程", "本月全部"),
+        ("📅", "5月行程", "指定月份"),
+        ("🔍", "搜尋 關鍵字", "搜尋行程"),
+        ("📩", "信件", "信件 + 草稿數量"),
+        ("👤", "聯絡人 姓名", "查詢聯絡人"),
+        ("✅", "待辦事項", "未完成任務"),
+    ]
+
+    body_contents = []
+    for i, (icon, cmd, desc) in enumerate(commands):
+        body_contents.append(_row(icon, cmd, desc))
+        if i < len(commands) - 1:
+            body_contents.append(SEPARATOR)
+
+    return {
+        "type": "flex",
+        "altText": "📋 可用指令清單",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#546e7a",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "📋 可用指令",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": "直接輸入以下指令即可查詢",
+                     "color": "#cfd8dc", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+    }
+
+
+# ── 活動提醒 ──────────────────────────────────────────────────────────
+def build_flex_event_reminder(event_name: str, event_time: str, location: str = "") -> dict:
+    """活動 1 小時前提醒卡片"""
+    body_contents = [
+        {"type": "text", "text": event_name, "size": "md", "weight": "bold",
+         "color": "#222222", "wrap": True},
+        {
+            "type": "box", "layout": "horizontal",
+            "margin": "md", "spacing": "sm",
+            "contents": [
+                {"type": "text", "text": "🕐", "size": "sm", "flex": 0},
+                {"type": "text", "text": event_time, "size": "sm", "color": "#555555"}
+            ]
+        }
+    ]
+    if location:
+        body_contents.append({
+            "type": "box", "layout": "horizontal",
+            "margin": "sm", "spacing": "sm",
+            "contents": [
+                {"type": "text", "text": "📍", "size": "sm", "flex": 0},
+                {"type": "text", "text": location, "size": "sm",
+                 "color": "#555555", "flex": 1, "wrap": True}
+            ]
+        })
+
+    return {
+        "type": "flex",
+        "altText": f"⏰ 1小時後：{event_name}",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#f57c00",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "⏰ 活動提醒",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": "1 小時後即將開始",
+                     "color": "#ffe0b2", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "16px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+    }
+
+
+# ── 草稿完成通知 ──────────────────────────────────────────────────────
+def build_flex_draft_ready(sender_name: str, subject: str) -> dict:
+    """草稿完成通知卡片（按下「幫我起草」後的推播）"""
+    return {
+        "type": "flex",
+        "altText": f"✉️ 草稿已備妥：{subject}",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#2e7d32",
+                "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "✉️ 草稿已備妥",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": "請至 Gmail 確認並發送",
+                     "color": "#c8e6c9", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "14px", "spacing": "none",
+                "contents": [
+                    {
+                        "type": "box", "layout": "horizontal",
+                        "spacing": "sm", "paddingBottom": "8px",
+                        "contents": [
+                            {"type": "text", "text": "寄件人", "size": "xs",
+                             "color": "#888888", "flex": 0},
+                            {"type": "text", "text": sender_name, "size": "sm",
+                             "color": "#222222", "flex": 1, "wrap": True}
+                        ]
+                    },
+                    SEPARATOR,
+                    {
+                        "type": "box", "layout": "horizontal",
+                        "spacing": "sm", "paddingTop": "8px",
+                        "contents": [
+                            {"type": "text", "text": "主旨", "size": "xs",
+                             "color": "#888888", "flex": 0},
+                            {"type": "text", "text": subject, "size": "sm",
+                             "color": "#333333", "flex": 1, "wrap": True}
+                        ]
+                    }
+                ]
+            }
+        }
+    }
