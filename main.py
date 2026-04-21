@@ -50,7 +50,7 @@ from linebot.v3.exceptions import InvalidSignatureError
 scheduler = AsyncIOScheduler(timezone="Asia/Taipei")
 
 # 已處理的信件 ID（防止 Pub/Sub 重複推送）
-_processed_email_ids: set = set()
+_processed_message_ids: set = set()
 
 # 等待起草的陌生信件（message_id → {email, expires_at}）
 _pending_drafts: dict = {}
@@ -95,7 +95,7 @@ reminded_events = set()
 PROCESSED_HISTORY_TTL_SECONDS = 600
 PROCESSED_EMAIL_TTL_SECONDS = 3600
 processed_history_ids = {}
-processed_email_ids = {}
+processed_message_ids = {}
 
 
 def _cleanup_cache(cache: dict, ttl_seconds: int) -> None:
@@ -178,7 +178,7 @@ async def process_new_email(history_id: str):
 
         latest_message = messages[0]
         message_id = latest_message["id"]
-        if _mark_once(processed_email_ids, message_id, PROCESSED_EMAIL_TTL_SECONDS):
+        if _mark_once(processed_message_ids, message_id, PROCESSED_EMAIL_TTL_SECONDS):
             print(f"[DEBUG] 略過重複 messageId：{message_id}", flush=True)
             return
         
@@ -208,9 +208,9 @@ async def process_new_email(history_id: str):
 
             # 若需要回覆，暫存等待使用者按按鈕
             if should_reply:
-                _pending_drafts[email_id] = {
+                _pending_drafts[message_id] = {
                     "email": email,
-                    "thread_id": latest_message.get("threadId", email_id),
+                    "thread_id": latest_message.get("threadId", message_id),
                     "expires_at": time.time() + 86400
                 }
 
@@ -218,7 +218,7 @@ async def process_new_email(history_id: str):
                 sender_name=sender_name,
                 subject=email["subject"],
                 is_unknown=True,
-                message_id=email_id,
+                message_id=message_id,
                 importance=importance,
                 reason=reason,
                 should_reply=should_reply,
@@ -245,7 +245,7 @@ async def process_new_email(history_id: str):
             if not subject.startswith("Re:"):
                 subject = f"Re: {subject}"
 
-            thread_id = latest_message.get("threadId", email_id)
+            thread_id = latest_message.get("threadId", message_id)
             await create_draft(
                 to_email=email["from_email"],
                 subject=subject,
