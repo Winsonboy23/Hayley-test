@@ -400,24 +400,6 @@ async def handle_line_message(text: str, reply_token: str):
             await reply_flex(reply_token, build_flex_email_summary(today_count, draft_count))
             return
 
-        # ── 聯絡人查詢：「聯絡人 王小明」 ──
-        if t.startswith("聯絡人"):
-            name = t.replace("聯絡人", "").strip()
-            if name:
-                contact = await get_contact_info_by_name(name)
-                if contact:
-                    await reply_flex(reply_token, build_flex_contact(
-                        name=contact["name"],
-                        role=contact.get("role", ""),
-                        unit=contact.get("unit", ""),
-                        email=contact.get("email", "")
-                    ))
-                else:
-                    await reply_message(reply_token, f"找不到「{name}」的聯絡資料")
-            else:
-                await reply_message(reply_token, "請輸入：聯絡人 姓名")
-            return
-
         # ── 指令清單 / 不認識的輸入 ──
         await reply_flex(reply_token, build_flex_menu())
 
