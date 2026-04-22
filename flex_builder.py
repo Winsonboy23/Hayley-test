@@ -907,7 +907,7 @@ def build_flex_tasks(tasks: list) -> dict:
 
 # ── 指令選單 ──────────────────────────────────────────────────────────
 def build_flex_menu() -> dict:
-    """可用指令選單卡片（分行事曆 / 信件兩區塊）"""
+    """可用指令選單：行事曆 + 信件 兩張卡片輪播"""
     def _row(icon, cmd, desc):
         return {
             "type": "box", "layout": "horizontal",
@@ -923,73 +923,64 @@ def build_flex_menu() -> dict:
             ]
         }
 
-    def _section_label(text, bg):
+    def _bubble(header_color, title, subtitle, cmds):
+        body = []
+        for i, (icon, cmd, desc) in enumerate(cmds):
+            body.append(_row(icon, cmd, desc))
+            if i < len(cmds) - 1:
+                body.append(SEPARATOR)
         return {
-            "type": "box", "layout": "vertical",
-            "backgroundColor": bg,
-            "paddingTop": "6px", "paddingBottom": "6px",
-            "paddingStart": "14px", "paddingEnd": "14px",
-            "contents": [
-                {"type": "text", "text": text,
-                 "size": "xxs", "color": "#ffffff", "weight": "bold"}
-            ]
-        }
-
-    cal_cmds = [
-        ("📅", "今日行程", "今天的行程"),
-        ("📅", "明日行程", "明天的行程"),
-        ("📅", "本週行程", "未來 7 天"),
-        ("📅", "本月行程", "本月全部"),
-        ("📅", "5月行程", "指定月份"),
-        ("🔍", "搜尋 關鍵字", "搜尋行程"),
-    ]
-
-    email_cmds = [
-        ("📩", "信件", "未讀封數 + 草稿數量"),
-        ("📩", "未讀信件", "列出所有未讀信件"),
-        ("📝", "信件草稿", "列出所有待發草稿"),
-        ("🔍", "搜尋信件 關鍵字", "搜尋信件"),
-    ]
-
-    body_contents = []
-
-    # 行事曆區塊
-    body_contents.append(_section_label("📅  行事曆", "#1a73e8"))
-    for i, (icon, cmd, desc) in enumerate(cal_cmds):
-        body_contents.append(_row(icon, cmd, desc))
-        if i < len(cal_cmds) - 1:
-            body_contents.append(SEPARATOR)
-
-    # 信件區塊
-    body_contents.append(_section_label("📩  信件", "#d50000"))
-    for i, (icon, cmd, desc) in enumerate(email_cmds):
-        body_contents.append(_row(icon, cmd, desc))
-        if i < len(email_cmds) - 1:
-            body_contents.append(SEPARATOR)
-
-    return {
-        "type": "flex",
-        "altText": "📋 可用指令清單",
-        "contents": {
             "type": "bubble",
             "size": "kilo",
             "header": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#546e7a",
-                "paddingAll": "14px",
+                "type": "box", "layout": "vertical",
+                "backgroundColor": header_color, "paddingAll": "14px",
                 "contents": [
-                    {"type": "text", "text": "📋 可用指令",
+                    {"type": "text", "text": title,
                      "color": "#ffffff", "size": "md", "weight": "bold"},
-                    {"type": "text", "text": "直接輸入以下指令即可查詢",
-                     "color": "#cfd8dc", "size": "xxs", "margin": "xs"}
+                    {"type": "text", "text": subtitle,
+                     "color": "#ffffff99", "size": "xxs", "margin": "xs"}
                 ]
             },
             "body": {
                 "type": "box", "layout": "vertical",
                 "paddingAll": "0px", "spacing": "none",
-                "contents": body_contents
+                "contents": body
             }
+        }
+
+    cal_bubble = _bubble(
+        header_color="#1a73e8",
+        title="📅 行事曆指令",
+        subtitle="滑動查看信件指令 →",
+        cmds=[
+            ("📅", "今日行程", "今天的行程"),
+            ("📅", "明日行程", "明天的行程"),
+            ("📅", "本週行程", "未來 7 天"),
+            ("📅", "本月行程", "本月全部"),
+            ("📅", "5月行程", "指定月份"),
+            ("🔍", "搜尋 關鍵字", "搜尋行程"),
+        ]
+    )
+
+    email_bubble = _bubble(
+        header_color="#d50000",
+        title="📩 信件指令",
+        subtitle="滑動查看行事曆指令 →",
+        cmds=[
+            ("📩", "信件", "未讀封數 + 草稿數量"),
+            ("📩", "未讀信件", "列出所有未讀信件"),
+            ("📝", "信件草稿", "列出所有待發草稿"),
+            ("🔍", "搜尋信件 關鍵字", "搜尋信件"),
+        ]
+    )
+
+    return {
+        "type": "flex",
+        "altText": "📋 可用指令清單",
+        "contents": {
+            "type": "carousel",
+            "contents": [cal_bubble, email_bubble]
         }
     }
 
