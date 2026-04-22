@@ -370,7 +370,7 @@
   <a href="#cmd">💬 LINE 指令</a>
   <a href="#push">🔔 自動推播</a>
   <a href="#email">✉️ 新信件處理</a>
-  <a href="#notion">🗂 Notion 資料庫</a>
+  <a href="#notion">🗂 Notion 資料庫 &amp; 模板</a>
   <a href="#cal">📆 行事曆說明</a>
 </div>
 
@@ -625,6 +625,67 @@
       <div style="background:#f3e5f5;border-radius:10px;padding:10px 16px;font-size:13px;color:#6a1b9a;">
         🤖 AI 套用模板<br>生成草稿
       </div>
+    </div>
+  </div>
+
+  <!-- template logic -->
+  <div style="margin-top:16px;background:white;border-radius:14px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06);">
+    <p style="font-size:13px;font-weight:700;color:#555;margin-bottom:14px;">📋 模板建立邏輯</p>
+
+    <!-- what template is -->
+    <div style="background:#f9f9f9;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+      <p style="font-size:12px;font-weight:700;color:#333;margin-bottom:6px;">模板是「風格參考」，不是直接複製貼上</p>
+      <p style="font-size:12px;color:#666;line-height:1.7;">
+        AI 會讀取模板的語氣與結構，再根據來信的實際內容重新撰寫。
+        模板可以寫：稱呼方式、開場白習慣、結語風格、常用句型等。
+      </p>
+    </div>
+
+    <!-- template flow -->
+    <p style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">生成流程</p>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+      <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#444;">
+        <span style="background:#1a73e8;color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">1</span>
+        取得聯絡人的「角色」（例如：廠商）
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#444;">
+        <span style="background:#1a73e8;color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">2</span>
+        在模板資料庫搜尋「適用對象角色 = 廠商」的模板
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#444;">
+        <span style="background:#1a73e8;color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">3</span>
+        找到模板 → AI 參考模板風格 + 來信內容生成草稿
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#444;">
+        <span style="background:#888;color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">✕</span>
+        <span>找不到模板 → AI 仍會生成草稿，但<span style="color:#e65100;font-weight:700;">沒有風格參考，品質較低</span></span>
+      </div>
+    </div>
+
+    <!-- missing fields behavior -->
+    <p style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">欄位未填時的行為</p>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+      <div style="display:flex;gap:10px;align-items:center;background:#fff3e0;border-radius:8px;padding:8px 12px;font-size:12px;">
+        <span style="font-size:14px;">⚠️</span>
+        <span><strong>角色未填</strong> → 無法配對模板，草稿品質下降（建議必填）</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;background:#f5f5f5;border-radius:8px;padding:8px 12px;font-size:12px;">
+        <span style="font-size:14px;">ℹ️</span>
+        <span><strong>店／單位未填</strong> → 只影響 LINE 通知顯示名稱，草稿不受影響</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;background:#ffebee;border-radius:8px;padding:8px 12px;font-size:12px;">
+        <span style="font-size:14px;">❌</span>
+        <span><strong>Email 未填</strong> → 完全找不到此聯絡人，會被當作陌生人處理</span>
+      </div>
+    </div>
+
+    <!-- warning -->
+    <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:12px 14px;font-size:12px;color:#5d4037;">
+      ⚠️ <strong>注意：角色名稱必須完全一致</strong><br>
+      <span style="color:#666;margin-top:4px;display:block;line-height:1.6;">
+        聯絡人的「角色」與模板的「適用對象角色」需一字不差，包含空格與大小寫。<br>
+        例如一邊填「廠商」另一邊填「廠商 」（多一個空格）就會配對失敗。
+      </span>
     </div>
   </div>
 </section>
