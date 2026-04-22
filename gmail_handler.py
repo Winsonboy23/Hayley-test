@@ -194,17 +194,13 @@ async def get_drafts_list(max_results: int = 10) -> list:
             id=d["id"],
             format="full"
         ).execute()
-        msg = detail.get("message", {})
-        payload = msg.get("payload", {})
-        headers_raw = payload.get("headers", [])
-        print(f"[DEBUG DRAFT] id={d['id']} payload_keys={list(payload.keys())} headers_count={len(headers_raw)}", flush=True)
-        if headers_raw:
-            print(f"[DEBUG DRAFT] headers={[(h['name'], h['value']) for h in headers_raw[:5]]}", flush=True)
-        headers = {h["name"]: h["value"] for h in headers_raw}
+        payload = detail.get("message", {}).get("payload", {})
+        # header name 可能是大寫或小寫（MIMEMultipart 產生的草稿為小寫），統一轉小寫比對
+        headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
         draft_list.append({
             "id": d["id"],
-            "subject": headers.get("Subject", "（無主旨）"),
-            "to": headers.get("To", ""),
+            "subject": headers.get("subject", "（無主旨）"),
+            "to": headers.get("to", ""),
         })
     return draft_list
 
