@@ -729,9 +729,7 @@ def build_flex_no_events(label: str, extra: str = "") -> dict:
                 "paddingAll": "24px",
                 "contents": [
                     {"type": "text", "text": body_text,
-                     "size": "sm", "color": "#888888", "align": "center"},
-                    {"type": "text", "text": "好好休息！☕",
-                     "size": "xs", "color": "#aaaaaa", "align": "center", "margin": "xs"}
+                     "size": "sm", "color": "#888888", "align": "center"}
                 ]
             }
         }
@@ -964,7 +962,6 @@ def build_flex_menu() -> dict:
             ("📅", "本週行程", "未來 7 天", None),
             ("📅", "本月行程", "本月全部", None),
             ("📅", "5月行程", "指定月份", None),
-            ("🔍", "搜尋 關鍵字", "搜尋行程", "搜尋 "),
         ]
     )
 
@@ -976,7 +973,6 @@ def build_flex_menu() -> dict:
             ("📩", "信件", "未讀封數 + 草稿數量", None),
             ("📩", "未讀信件", "列出所有未讀信件", None),
             ("📝", "信件草稿", "列出所有待發草稿", None),
-            ("🔍", "搜尋信件 關鍵字", "搜尋信件", "搜尋信件 "),
         ]
     )
 
