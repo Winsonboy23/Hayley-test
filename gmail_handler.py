@@ -192,8 +192,7 @@ async def get_drafts_list(max_results: int = 10) -> list:
         detail = service.users().drafts().get(
             userId="me",
             id=d["id"],
-            format="metadata",
-            metadataHeaders=["Subject", "To"]
+            format="metadata"
         ).execute()
         headers = {
             h["name"]: h["value"]
