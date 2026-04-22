@@ -147,6 +147,40 @@ async def count_drafts() -> int:
     return len(drafts)
 
 
+async def search_emails(keyword: str, max_results: int = 5) -> list:
+    """用關鍵字搜尋信件，回傳摘要列表（不含內文，不消耗 AI token）"""
+    service = get_gmail_service()
+    results = service.users().messages().list(
+        userId="me",
+        q=keyword,
+        maxResults=max_results
+    ).execute()
+
+    messages = results.get("messages", [])
+    emails = []
+
+    for msg in messages:
+        detail = service.users().messages().get(
+            userId="me",
+            id=msg["id"],
+            format="metadata",
+            metadataHeaders=["Subject", "From", "Date"]
+        ).execute()
+
+        headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
+        from_raw = headers.get("From", "")
+
+        emails.append({
+            "id": msg["id"],
+            "subject": headers.get("Subject", "（無主旨）"),
+            "from_name": extract_sender_name(from_raw),
+            "from_email": extract_email_address(from_raw),
+            "date": headers.get("Date", "")[:16],
+        })
+
+    return emails
+
+
 async def setup_gmail_watch() -> dict:
     """設定 Gmail Push Notification（監聽新信）"""
     service = get_gmail_service()

@@ -17,7 +17,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from gmail_handler import (
     get_email_by_id, create_draft,
     count_today_emails, count_drafts, count_unread_emails,
-    setup_gmail_watch
+    setup_gmail_watch, search_emails
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
@@ -32,6 +32,7 @@ from flex_builder import (
     build_flex_no_events, build_flex_email_summary,
     build_flex_contact, build_flex_tasks, build_flex_menu,
     build_flex_event_reminder, build_flex_draft_ready,
+    build_flex_email_search,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -420,6 +421,19 @@ async def handle_line_message(text: str, reply_token: str):
                     "搜尋結果", extra=f"找不到含「{keyword}」的行程"))
             else:
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"搜尋：{keyword}"))
+            return
+
+        # ── 搜尋信件 ──
+        if t.startswith("搜尋信件"):
+            keyword = t.replace("搜尋信件", "").strip()
+            if not keyword:
+                await reply_message(reply_token, "請輸入：搜尋信件 關鍵字")
+                return
+            emails = await search_emails(keyword)
+            if not emails:
+                await reply_message(reply_token, f"找不到含「{keyword}」的信件")
+            else:
+                await reply_flex(reply_token, build_flex_email_search(emails, keyword))
             return
 
         # ── 信件 / 草稿狀況 ──

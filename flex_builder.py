@@ -930,7 +930,8 @@ def build_flex_menu() -> dict:
         ("📅", "本月行程", "本月全部"),
         ("📅", "5月行程", "指定月份"),
         ("🔍", "搜尋 關鍵字", "搜尋行程"),
-        ("📩", "信件", "信件 + 草稿數量"),
+        ("📩", "信件", "未讀封數 + 草稿數量"),
+        ("🔍", "搜尋信件 關鍵字", "搜尋信件"),
     ]
 
     body_contents = []
@@ -1020,6 +1021,59 @@ def build_flex_event_reminder(event_name: str, event_time: str, location: str = 
 
 
 # ── 草稿完成通知 ──────────────────────────────────────────────────────
+def build_flex_email_search(emails: list, keyword: str) -> dict:
+    """信件搜尋結果卡片"""
+    body_contents = []
+    for i, email in enumerate(emails):
+        body_contents.append({
+            "type": "box", "layout": "vertical",
+            "paddingTop": "10px", "paddingBottom": "10px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {
+                    "type": "text", "text": email["subject"],
+                    "size": "sm", "color": "#222222", "weight": "bold", "wrap": True
+                },
+                {
+                    "type": "box", "layout": "horizontal",
+                    "margin": "xs", "spacing": "sm",
+                    "contents": [
+                        {"type": "text", "text": email["from_name"] or email["from_email"],
+                         "size": "xs", "color": "#888888", "flex": 1, "wrap": True},
+                        {"type": "text", "text": email["date"],
+                         "size": "xs", "color": "#aaaaaa", "flex": 0, "wrap": False}
+                    ]
+                }
+            ]
+        })
+        if i < len(emails) - 1:
+            body_contents.append(SEPARATOR)
+
+    return {
+        "type": "flex",
+        "altText": f"📩 搜尋「{keyword}」找到 {len(emails)} 封信",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "backgroundColor": "#1a73e8", "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "📩 信件搜尋",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": f"「{keyword}」共 {len(emails)} 封",
+                     "color": "#c7dcfc", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+    }
+
+
 def build_flex_draft_ready(sender_name: str, subject: str) -> dict:
     """草稿完成通知卡片（按下「幫我起草」後的推播）"""
     return {
