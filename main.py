@@ -424,9 +424,9 @@ async def handle_line_message(text: str, reply_token: str):
 
         # ── 信件 / 草稿狀況 ──
         if t in ["信件", "今日信件", "收信", "草稿", "信件狀況"]:
-            today_count = await count_today_emails()
+            unread_count = await count_unread_emails()
             draft_count = await count_drafts()
-            await reply_flex(reply_token, build_flex_email_summary(today_count, draft_count))
+            await reply_flex(reply_token, build_flex_email_summary(unread_count, draft_count))
             return
 
         # ── 指令清單 / 不認識的輸入 ──

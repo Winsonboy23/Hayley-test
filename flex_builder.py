@@ -739,11 +739,11 @@ def build_flex_no_events(label: str, extra: str = "") -> dict:
 
 
 # ── 信件查詢 ──────────────────────────────────────────────────────────
-def build_flex_email_summary(today_count: int, draft_count: int) -> dict:
-    """信件狀況卡片：今日信件 + 待發草稿"""
+def build_flex_email_summary(unread_count: int, draft_count: int) -> dict:
+    """信件狀況卡片：未讀信件 + 待發草稿"""
     return {
         "type": "flex",
-        "altText": f"📩 今天收到 {today_count} 封信・草稿 {draft_count} 封",
+        "altText": f"📩 未讀 {unread_count} 封・草稿 {draft_count} 封",
         "contents": {
             "type": "bubble",
             "size": "kilo",
@@ -765,11 +765,11 @@ def build_flex_email_summary(today_count: int, draft_count: int) -> dict:
                 "contents": [
                     {
                         "type": "box", "layout": "vertical", "flex": 1,
-                        "backgroundColor": "#e8f0fe", "cornerRadius": "8px", "paddingAll": "14px",
+                        "backgroundColor": "#fce4ec", "cornerRadius": "8px", "paddingAll": "14px",
                         "contents": [
-                            {"type": "text", "text": str(today_count), "size": "xxl",
-                             "weight": "bold", "color": "#1a73e8", "align": "center"},
-                            {"type": "text", "text": "今日信件", "size": "xxs",
+                            {"type": "text", "text": str(unread_count), "size": "xxl",
+                             "weight": "bold", "color": "#d50000", "align": "center"},
+                            {"type": "text", "text": "未讀信件", "size": "xxs",
                              "color": "#555555", "align": "center", "margin": "xs"}
                         ]
                     },
