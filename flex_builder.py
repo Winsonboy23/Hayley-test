@@ -908,12 +908,17 @@ def build_flex_tasks(tasks: list) -> dict:
 # ── 指令選單 ──────────────────────────────────────────────────────────
 def build_flex_menu() -> dict:
     """可用指令選單：行事曆 + 信件 兩張卡片輪播"""
-    def _row(icon, cmd, desc):
+    def _row(icon, cmd, desc, send_text=None):
         return {
             "type": "box", "layout": "horizontal",
             "paddingTop": "9px", "paddingBottom": "9px",
             "paddingStart": "14px", "paddingEnd": "14px",
             "spacing": "sm",
+            "action": {
+                "type": "message",
+                "label": cmd,
+                "text": send_text or cmd
+            },
             "contents": [
                 {"type": "text", "text": icon, "size": "sm", "flex": 0},
                 {"type": "text", "text": cmd, "size": "sm", "color": "#1a73e8",
@@ -925,8 +930,8 @@ def build_flex_menu() -> dict:
 
     def _bubble(header_color, title, subtitle, cmds):
         body = []
-        for i, (icon, cmd, desc) in enumerate(cmds):
-            body.append(_row(icon, cmd, desc))
+        for i, (icon, cmd, desc, send_text) in enumerate(cmds):
+            body.append(_row(icon, cmd, desc, send_text))
             if i < len(cmds) - 1:
                 body.append(SEPARATOR)
         return {
@@ -954,12 +959,12 @@ def build_flex_menu() -> dict:
         title="📅 行事曆指令",
         subtitle="滑動查看信件指令 →",
         cmds=[
-            ("📅", "今日行程", "今天的行程"),
-            ("📅", "明日行程", "明天的行程"),
-            ("📅", "本週行程", "未來 7 天"),
-            ("📅", "本月行程", "本月全部"),
-            ("📅", "5月行程", "指定月份"),
-            ("🔍", "搜尋 關鍵字", "搜尋行程"),
+            ("📅", "今日行程", "今天的行程", None),
+            ("📅", "明日行程", "明天的行程", None),
+            ("📅", "本週行程", "未來 7 天", None),
+            ("📅", "本月行程", "本月全部", None),
+            ("📅", "5月行程", "指定月份", None),
+            ("🔍", "搜尋 關鍵字", "搜尋行程", "搜尋 "),
         ]
     )
 
@@ -968,10 +973,10 @@ def build_flex_menu() -> dict:
         title="📩 信件指令",
         subtitle="滑動查看行事曆指令 →",
         cmds=[
-            ("📩", "信件", "未讀封數 + 草稿數量"),
-            ("📩", "未讀信件", "列出所有未讀信件"),
-            ("📝", "信件草稿", "列出所有待發草稿"),
-            ("🔍", "搜尋信件 關鍵字", "搜尋信件"),
+            ("📩", "信件", "未讀封數 + 草稿數量", None),
+            ("📩", "未讀信件", "列出所有未讀信件", None),
+            ("📝", "信件草稿", "列出所有待發草稿", None),
+            ("🔍", "搜尋信件 關鍵字", "搜尋信件", "搜尋信件 "),
         ]
     )
 
