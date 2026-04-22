@@ -192,11 +192,12 @@ async def get_drafts_list(max_results: int = 10) -> list:
         detail = service.users().drafts().get(
             userId="me",
             id=d["id"],
-            format="metadata"
+            format="metadata",
+            metadataHeaders=["Subject", "To"]
         ).execute()
         headers = {
             h["name"]: h["value"]
-            for h in detail["message"]["payload"]["headers"]
+            for h in detail["message"]["payload"].get("headers", [])
         }
         draft_list.append({
             "id": d["id"],
