@@ -194,10 +194,13 @@ async def get_drafts_list(max_results: int = 10) -> list:
             id=d["id"],
             format="full"
         ).execute()
-        headers = {
-            h["name"]: h["value"]
-            for h in detail["message"]["payload"].get("headers", [])
-        }
+        msg = detail.get("message", {})
+        payload = msg.get("payload", {})
+        headers_raw = payload.get("headers", [])
+        print(f"[DEBUG DRAFT] id={d['id']} payload_keys={list(payload.keys())} headers_count={len(headers_raw)}", flush=True)
+        if headers_raw:
+            print(f"[DEBUG DRAFT] headers={[(h['name'], h['value']) for h in headers_raw[:5]]}", flush=True)
+        headers = {h["name"]: h["value"] for h in headers_raw}
         draft_list.append({
             "id": d["id"],
             "subject": headers.get("Subject", "（無主旨）"),
