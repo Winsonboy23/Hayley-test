@@ -931,6 +931,7 @@ def build_flex_menu() -> dict:
         ("📅", "5月行程", "指定月份"),
         ("🔍", "搜尋 關鍵字", "搜尋行程"),
         ("📩", "信件", "未讀封數 + 草稿數量"),
+        ("📩", "未讀信件", "列出所有未讀信件"),
         ("📝", "信件草稿", "列出所有待發草稿"),
         ("🔍", "搜尋信件 關鍵字", "搜尋信件"),
     ]
@@ -1022,6 +1023,56 @@ def build_flex_event_reminder(event_name: str, event_time: str, location: str = 
 
 
 # ── 草稿完成通知 ──────────────────────────────────────────────────────
+def build_flex_unread_emails(emails: list) -> dict:
+    """未讀信件列表卡片"""
+    body_contents = []
+    for i, email in enumerate(emails):
+        sender = email["from_name"] or email["from_email"]
+        body_contents.append({
+            "type": "box", "layout": "vertical",
+            "paddingTop": "10px", "paddingBottom": "10px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {"type": "text", "text": email["subject"],
+                 "size": "sm", "color": "#222222", "weight": "bold", "wrap": True},
+                {"type": "box", "layout": "horizontal",
+                 "margin": "xs", "spacing": "sm",
+                 "contents": [
+                     {"type": "text", "text": sender, "size": "xs",
+                      "color": "#888888", "flex": 1, "wrap": True},
+                     {"type": "text", "text": email["date"],
+                      "size": "xs", "color": "#aaaaaa", "flex": 0}
+                 ]}
+            ]
+        })
+        if i < len(emails) - 1:
+            body_contents.append(SEPARATOR)
+
+    return {
+        "type": "flex",
+        "altText": f"📩 未讀信件（{len(emails)} 封）",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "backgroundColor": "#d50000", "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "📩 未讀信件",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": f"共 {len(emails)} 封未讀",
+                     "color": "#ffcdd2", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+    }
+
+
 def build_flex_drafts_list(drafts: list) -> dict:
     """草稿列表卡片"""
     body_contents = []

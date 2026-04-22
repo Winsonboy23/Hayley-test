@@ -17,7 +17,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from gmail_handler import (
     get_email_by_id, create_draft,
     count_today_emails, count_drafts, count_unread_emails,
-    setup_gmail_watch, search_emails, get_drafts_list
+    setup_gmail_watch, search_emails, get_drafts_list, get_unread_emails
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
@@ -33,6 +33,7 @@ from flex_builder import (
     build_flex_contact, build_flex_tasks, build_flex_menu,
     build_flex_event_reminder, build_flex_draft_ready,
     build_flex_email_search, build_flex_drafts_list,
+    build_flex_unread_emails,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -421,6 +422,15 @@ async def handle_line_message(text: str, reply_token: str):
                     "搜尋結果", extra=f"找不到含「{keyword}」的行程"))
             else:
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"搜尋：{keyword}"))
+            return
+
+        # ── 未讀信件列表 ──
+        if t in ["未讀信件", "未讀"]:
+            emails = await get_unread_emails()
+            if not emails:
+                await reply_message(reply_token, "📩 目前沒有未讀信件")
+            else:
+                await reply_flex(reply_token, build_flex_unread_emails(emails))
             return
 
         # ── 信件草稿列表 ──
