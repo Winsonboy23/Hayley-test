@@ -931,6 +931,7 @@ def build_flex_menu() -> dict:
         ("📅", "5月行程", "指定月份"),
         ("🔍", "搜尋 關鍵字", "搜尋行程"),
         ("📩", "信件", "未讀封數 + 草稿數量"),
+        ("📝", "信件草稿", "列出所有待發草稿"),
         ("🔍", "搜尋信件 關鍵字", "搜尋信件"),
     ]
 
@@ -1021,6 +1022,56 @@ def build_flex_event_reminder(event_name: str, event_time: str, location: str = 
 
 
 # ── 草稿完成通知 ──────────────────────────────────────────────────────
+def build_flex_drafts_list(drafts: list) -> dict:
+    """草稿列表卡片"""
+    body_contents = []
+    for i, draft in enumerate(drafts):
+        to_display = draft["to"] if draft["to"] else "（未填收件人）"
+        body_contents.append({
+            "type": "box", "layout": "vertical",
+            "paddingTop": "10px", "paddingBottom": "10px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {"type": "text", "text": draft["subject"],
+                 "size": "sm", "color": "#222222", "weight": "bold", "wrap": True},
+                {"type": "box", "layout": "horizontal",
+                 "margin": "xs", "spacing": "sm",
+                 "contents": [
+                     {"type": "text", "text": "寄給", "size": "xs",
+                      "color": "#aaaaaa", "flex": 0},
+                     {"type": "text", "text": to_display, "size": "xs",
+                      "color": "#888888", "flex": 1, "wrap": True}
+                 ]}
+            ]
+        })
+        if i < len(drafts) - 1:
+            body_contents.append(SEPARATOR)
+
+    return {
+        "type": "flex",
+        "altText": f"📝 草稿列表（{len(drafts)} 封）",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "backgroundColor": "#f57f17", "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "📝 信件草稿",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": f"共 {len(drafts)} 封待發",
+                     "color": "#ffe0b2", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+    }
+
+
 def build_flex_email_search(emails: list, keyword: str) -> dict:
     """信件搜尋結果卡片"""
     body_contents = []

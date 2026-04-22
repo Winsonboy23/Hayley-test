@@ -147,6 +147,31 @@ async def count_drafts() -> int:
     return len(drafts)
 
 
+async def get_drafts_list(max_results: int = 10) -> list:
+    """取得草稿列表（含主旨、收件人）"""
+    service = get_gmail_service()
+    results = service.users().drafts().list(userId="me").execute()
+    drafts = results.get("drafts", [])[:max_results]
+
+    draft_list = []
+    for d in drafts:
+        detail = service.users().drafts().get(
+            userId="me",
+            id=d["id"],
+            format="metadata"
+        ).execute()
+        headers = {
+            h["name"]: h["value"]
+            for h in detail["message"]["payload"]["headers"]
+        }
+        draft_list.append({
+            "id": d["id"],
+            "subject": headers.get("Subject", "（無主旨）"),
+            "to": headers.get("To", ""),
+        })
+    return draft_list
+
+
 async def search_emails(keyword: str, max_results: int = 5) -> list:
     """用關鍵字搜尋信件，回傳摘要列表（不含內文，不消耗 AI token）"""
     service = get_gmail_service()
