@@ -377,7 +377,7 @@
 <!-- ── 1. LINE 指令 ── -->
 <section id="cmd">
   <div class="section-title"><span>💬</span> LINE 指令</div>
-  <p class="section-sub">直接在 LINE 對話框輸入以下文字即可查詢，系統會以卡片方式回應。</p>
+  <p class="section-sub">直接輸入文字，或輸入任意內容叫出<strong>指令選單卡片</strong>，點擊即可執行（搜尋類需手動輸入關鍵字）。</p>
 
   <div class="cmd-group">
     <div class="cmd-group-label">📅 行事曆</div>
@@ -406,9 +406,9 @@
         <span class="cmd-tag">5月行程</span>
         <div class="cmd-info">指定任意月份，1–12 月皆可，例如「<strong>8月行程</strong>」</div>
       </div>
-      <div class="cmd-row">
-        <span class="cmd-tag">搜尋 關鍵字</span>
-        <div class="cmd-info">跨所有日曆搜尋行程，例如「<strong>搜尋 會議</strong>」</div>
+      <div class="cmd-row" style="opacity:.6;">
+        <span class="cmd-tag" style="background:#f5f5f5;color:#999;">搜尋 關鍵字</span>
+        <div class="cmd-info">跨所有日曆搜尋行程，例如「<strong>搜尋 會議</strong>」（需手動輸入）</div>
       </div>
     </div>
   </div>
@@ -418,9 +418,31 @@
     <div class="cmd-list">
       <div class="cmd-row">
         <span class="cmd-tag">信件</span>
-        <div class="cmd-info">收件匣<strong>未讀幾封</strong> ＋ 草稿區幾封待發，以卡片方式顯示</div>
+        <div class="cmd-info">收件匣<strong>未讀幾封</strong> ＋ 草稿區幾封待發</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">未讀信件</span>
+        <div class="cmd-info">列出所有未讀信件（寄件人 ＋ 主旨），最多 10 封</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">信件草稿</span>
+        <div class="cmd-info">列出 Gmail 草稿夾所有待發信件（主旨 ＋ 收件人）</div>
+      </div>
+      <div class="cmd-row" style="opacity:.6;">
+        <span class="cmd-tag" style="background:#f5f5f5;color:#999;">搜尋信件 關鍵字</span>
+        <div class="cmd-info">搜尋 Gmail 信件，例如「<strong>搜尋信件 報價</strong>」（需手動輸入）</div>
       </div>
     </div>
+  </div>
+
+  <!-- 指令選單說明 -->
+  <div style="background:white;border-radius:14px;padding:16px 20px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-top:4px;">
+    <p style="font-size:13px;font-weight:700;color:#555;margin-bottom:8px;">💡 指令選單卡片</p>
+    <p style="font-size:12px;color:#666;line-height:1.7;">
+      輸入任何不認識的文字，系統會回傳兩張可點擊的指令卡片：<br>
+      🔵 <strong>行事曆指令</strong>（藍色）　🔴 <strong>信件指令</strong>（紅色）<br>
+      左右滑動切換，點擊即執行，灰色項目需手動輸入關鍵字。
+    </p>
   </div>
 </section>
 
@@ -533,6 +555,10 @@
         <h4>⚠️ 陌生寄件人（不在 Notion 名單）</h4>
         <div class="step-item">
           <span class="step-num">1</span>
+          規則過濾：電子報、廣告、系統通知 → 直接略過，不通知
+        </div>
+        <div class="step-item">
+          <span class="step-num">2</span>
           AI 判斷信件重要程度
         </div>
         <div class="importance-row">
