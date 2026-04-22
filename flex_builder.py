@@ -906,30 +906,33 @@ def build_flex_tasks(tasks: list) -> dict:
 # ── 指令選單 ──────────────────────────────────────────────────────────
 def build_flex_menu() -> dict:
     """可用指令選單：行事曆 + 信件 兩張卡片輪播"""
-    def _row(icon, cmd, desc, send_text=None):
-        return {
+    def _row(icon, cmd, desc, send_text=None, clickable=True):
+        row = {
             "type": "box", "layout": "horizontal",
             "paddingTop": "9px", "paddingBottom": "9px",
             "paddingStart": "14px", "paddingEnd": "14px",
             "spacing": "sm",
-            "action": {
-                "type": "message",
-                "label": cmd,
-                "text": send_text or cmd
-            },
             "contents": [
                 {"type": "text", "text": icon, "size": "sm", "flex": 0},
-                {"type": "text", "text": cmd, "size": "sm", "color": "#1a73e8",
+                {"type": "text", "text": cmd, "size": "sm",
+                 "color": "#1a73e8" if clickable else "#aaaaaa",
                  "weight": "bold", "flex": 0},
                 {"type": "text", "text": desc, "size": "xs", "color": "#888888",
                  "flex": 1, "wrap": True, "align": "end"}
             ]
         }
+        if clickable:
+            row["action"] = {
+                "type": "message",
+                "label": cmd,
+                "text": send_text or cmd
+            }
+        return row
 
     def _bubble(header_color, title, subtitle, cmds):
         body = []
-        for i, (icon, cmd, desc, send_text) in enumerate(cmds):
-            body.append(_row(icon, cmd, desc, send_text))
+        for i, (icon, cmd, desc, send_text, clickable) in enumerate(cmds):
+            body.append(_row(icon, cmd, desc, send_text, clickable))
             if i < len(cmds) - 1:
                 body.append(SEPARATOR)
         return {
@@ -957,11 +960,12 @@ def build_flex_menu() -> dict:
         title="📅 行事曆指令",
         subtitle="滑動查看信件指令 →",
         cmds=[
-            ("📅", "今日行程", "今天的行程", None),
-            ("📅", "明日行程", "明天的行程", None),
-            ("📅", "本週行程", "未來 7 天", None),
-            ("📅", "本月行程", "本月全部", None),
-            ("📅", "5月行程", "指定月份", None),
+            ("📅", "今日行程", "今天的行程", None, True),
+            ("📅", "明日行程", "明天的行程", None, True),
+            ("📅", "本週行程", "未來 7 天", None, True),
+            ("📅", "本月行程", "本月全部", None, True),
+            ("📅", "5月行程", "指定月份", None, True),
+            ("🔍", "搜尋 關鍵字", "搜尋行程", None, False),
         ]
     )
 
@@ -970,9 +974,10 @@ def build_flex_menu() -> dict:
         title="📩 信件指令",
         subtitle="滑動查看行事曆指令 →",
         cmds=[
-            ("📩", "信件", "未讀封數 + 草稿數量", None),
-            ("📩", "未讀信件", "列出所有未讀信件", None),
-            ("📝", "信件草稿", "列出所有待發草稿", None),
+            ("📩", "信件", "未讀封數 + 草稿數量", None, True),
+            ("📩", "未讀信件", "列出所有未讀信件", None, True),
+            ("📝", "信件草稿", "列出所有待發草稿", None, True),
+            ("🔍", "搜尋信件 關鍵字", "搜尋信件", None, False),
         ]
     )
 
