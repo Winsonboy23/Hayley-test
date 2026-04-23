@@ -38,7 +38,7 @@ from flex_builder import (
 from tasks_handler import get_all_tasks
 from notion_handler import (
     find_contact_by_email, get_template_by_role,
-    get_contact_info_by_name
+    get_contact_info_by_name, get_email_blacklist
 )
 from gemini_handler import (
     generate_reply_draft, classify_email_importance,
@@ -221,6 +221,12 @@ async def process_new_email(history_id: str):
         
         if is_unknown:
             sender_name = email["from_name"] or email["from_email"]
+
+            # Notion 黑名單過濾：直接略過，不通知、不消耗 AI token
+            blacklist = await get_email_blacklist()
+            if email["from_email"].lower().strip() in blacklist:
+                print(f"[BLACKLIST] 黑名單略過：{email['from_email']} | {email['subject']}", flush=True)
+                return
 
             # 規則前置過濾：明顯廣告 / 系統信 → 直接略過，不消耗 AI token
             if _is_obviously_low(email["subject"], email["from_email"]):
