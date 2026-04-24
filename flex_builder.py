@@ -943,18 +943,22 @@ def build_flex_menu() -> dict:
             body.append(_row(icon, cmd, desc, send_text, clickable))
             if i < len(cmds) - 1:
                 body.append(SEPARATOR)
+        header_contents = [
+            {"type": "text", "text": title,
+             "color": "#ffffff", "size": "md", "weight": "bold"}
+        ]
+        if subtitle:
+            header_contents.append(
+                {"type": "text", "text": subtitle,
+                 "color": "#ffffff99", "size": "xxs", "margin": "xs"}
+            )
         return {
             "type": "bubble",
             "size": "kilo",
             "header": {
                 "type": "box", "layout": "vertical",
                 "backgroundColor": header_color, "paddingAll": "14px",
-                "contents": [
-                    {"type": "text", "text": title,
-                     "color": "#ffffff", "size": "md", "weight": "bold"},
-                    {"type": "text", "text": subtitle,
-                     "color": "#ffffff99", "size": "xxs", "margin": "xs"}
-                ]
+                "contents": header_contents
             },
             "body": {
                 "type": "box", "layout": "vertical",
