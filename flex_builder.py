@@ -966,7 +966,7 @@ def build_flex_menu() -> dict:
     cal_bubble = _bubble(
         header_color="#1a73e8",
         title="📅 行事曆指令",
-        subtitle="滑動查看信件指令 →",
+        subtitle="",
         cmds=[
             ("📅", "今日行程", "今天的行程", None, True),
             ("📅", "明日行程", "明天的行程", None, True),
@@ -977,11 +977,22 @@ def build_flex_menu() -> dict:
             ("🔍", "搜尋 關鍵字", "搜尋行程", None, False),
         ]
     )
+    cal_bubble["footer"] = {
+        "type": "box",
+        "layout": "vertical",
+        "backgroundColor": "#f5f5f5",
+        "paddingAll": "10px",
+        "contents": [{
+            "type": "text",
+            "text": "小撇步： 直接輸入「今日」即可查看當日行程。",
+            "size": "xxs", "color": "#888888", "wrap": True
+        }]
+    }
 
     email_bubble = _bubble(
         header_color="#d50000",
         title="📩 信件指令",
-        subtitle="滑動查看行事曆指令 →",
+        subtitle="",
         cmds=[
             ("📩", "信件", "未讀封數 + 草稿數量", None, True),
             ("📩", "未讀信件", "列出所有未讀信件", None, True),
