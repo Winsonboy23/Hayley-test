@@ -185,11 +185,18 @@ def _parse_add_event(text: str) -> dict | None:
     """
     解析「新增行程」指令，回傳 dict 或 None（格式錯誤）
     格式：新增行程 日期[~結束日] 時間|全天 標題 [@地點]
+    支援：
+      日期 - MM/DD、今天/明天/後天、下週X、X月Y日/號（中文或數字）
+      時間 - HH:MM、全天、[上午|下午|晚上|早上]X點[半]（中文數字）
+      範圍 - 半形 ~ 或全形 ～ 分隔
     """
     import re
     from datetime import date as date_cls
 
     t = text.strip()
+    # 正規化全形波浪號為半形
+    t = t.replace("～", "~")
+
     # 移除指令前綴
     for prefix in ["新增行程", "新增"]:
         if t.startswith(prefix):
@@ -212,6 +219,26 @@ def _parse_add_event(text: str) -> dict | None:
 
     today = datetime.now(TAIPEI_TZ).date()
 
+    # ── 中文數字轉整數 ──
+    _CN_DIG = {"〇":0,"零":0,"一":1,"二":2,"兩":2,"三":3,"四":4,"五":5,
+               "六":6,"七":7,"八":8,"九":9}
+    def _cn_to_int(s: str) -> int | None:
+        if not s:
+            return None
+        if s.isdigit():
+            return int(s)
+        if s == "十":
+            return 10
+        if len(s) == 2 and s[0] == "十" and s[1] in _CN_DIG:
+            return 10 + _CN_DIG[s[1]]
+        if len(s) == 2 and s[0] in _CN_DIG and s[1] == "十":
+            return _CN_DIG[s[0]] * 10
+        if len(s) == 3 and s[0] in _CN_DIG and s[1] == "十" and s[2] in _CN_DIG:
+            return _CN_DIG[s[0]] * 10 + _CN_DIG[s[2]]
+        if len(s) == 1 and s in _CN_DIG:
+            return _CN_DIG[s]
+        return None
+
     def _resolve_date(s: str):
         """將各種日期格式轉成 date 物件"""
         weekday_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6}
@@ -227,6 +254,7 @@ def _parse_add_event(text: str) -> dict | None:
             days_ahead = (target_wd - today.weekday() + 7) % 7
             days_ahead = days_ahead if days_ahead else 7
             return today + timedelta(days=days_ahead + 7 - 7)
+        # MM/DD（數字斜線格式）
         m = re.match(r"^(\d{1,2})/(\d{1,2})$", s)
         if m:
             month, day = int(m.group(1)), int(m.group(2))
@@ -238,6 +266,53 @@ def _parse_add_event(text: str) -> dict | None:
                 return d
             except ValueError:
                 return None
+        # X月Y日 / X月Y號（中文或數字月日）
+        m = re.match(r"^([零〇一二三四五六七八九十\d]{1,4})月([零〇一二兩三四五六七八九十\d]{1,4})[日號]$", s)
+        if m:
+            month = _cn_to_int(m.group(1))
+            day = _cn_to_int(m.group(2))
+            if month and day:
+                year = today.year
+                try:
+                    d = date_cls(year, month, day)
+                    if d < today:
+                        d = date_cls(year + 1, month, day)
+                    return d
+                except ValueError:
+                    return None
+        return None
+
+    def _resolve_time(s: str) -> str | None:
+        """將時間字串轉成 HH:MM，無法解析回傳 None"""
+        # 數字格式 HH:MM
+        if re.match(r"^\d{1,2}:\d{2}$", s):
+            return s.zfill(5)
+        # 中文時間：[前綴]X點[半]
+        m = re.match(
+            r"^(上午|下午|晚上|早上|中午)?"
+            r"([零〇一二兩三四五六七八九十\d]{1,3})點([半]?)$",
+            s
+        )
+        if m:
+            prefix = m.group(1) or ""
+            hour_cn = m.group(2)
+            half = m.group(3)
+            hour = _cn_to_int(hour_cn)
+            if hour is None:
+                return None
+            minute = 30 if half == "半" else 0
+            # 無前綴：1-6 → 下午（+12），7-12 → 上午
+            if prefix in ("下午", "晚上", "中午"):
+                if hour < 12:
+                    hour += 12
+            elif prefix in ("上午", "早上"):
+                if hour == 12:
+                    hour = 0  # 上午12點 = 00:00（少見但合理）
+            else:
+                # 無前綴推斷：1–6 → PM，7–12 → AM
+                if 1 <= hour <= 6:
+                    hour += 12
+            return f"{hour:02d}:{minute:02d}"
         return None
 
     # 第一個 token：日期（可能含 ~）
@@ -258,11 +333,11 @@ def _parse_add_event(text: str) -> dict | None:
     if time_token == "全天":
         start_time = None
         time_display = "全天"
-    elif re.match(r"^\d{1,2}:\d{2}$", time_token):
-        start_time = time_token.zfill(5)
-        time_display = start_time
     else:
-        return None
+        start_time = _resolve_time(time_token)
+        if start_time is None:
+            return None
+        time_display = start_time
 
     # 剩餘：標題
     title = " ".join(tokens[2:]).strip()
@@ -508,10 +583,12 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             return
 
-        # ── x月行程 ──
-        m = re.match(r"^(\d{1,2})月行程$", t)
+        # ── x月行程（支援阿拉伯數字與中文數字，如五月行程、5月行程）──
+        _CN_MONTH = {"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,"十一":11,"十二":12}
+        m = re.match(r"^(十[一二]|[一二三四五六七八九十]|\d{1,2})月行程$", t)
         if m:
-            month = int(m.group(1))
+            ms = m.group(1)
+            month = int(ms) if ms.isdigit() else _CN_MONTH.get(ms, 0)
             if 1 <= month <= 12:
                 cal_list, events = await get_flex_by_month(month)
                 if not events:
