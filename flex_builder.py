@@ -973,6 +973,7 @@ def build_flex_menu() -> dict:
             ("📅", "本週行程", "未來 7 天", None, True),
             ("📅", "本月行程", "本月全部", None, True),
             ("📅", "5月行程", "指定月份", None, True),
+            ("➕", "新增行程", "查看新增格式", None, True),
             ("🔍", "搜尋 關鍵字", "搜尋行程", None, False),
         ]
     )
@@ -1201,6 +1202,144 @@ def build_flex_email_search(emails: list, keyword: str) -> dict:
                 "type": "box", "layout": "vertical",
                 "paddingAll": "0px", "spacing": "none",
                 "contents": body_contents
+            }
+        }
+    }
+
+
+def build_flex_add_event_help(error_hint: str = "") -> dict:
+    """新增行程格式說明卡片"""
+    def _fmt_row(situation, example):
+        return {
+            "type": "box", "layout": "vertical",
+            "paddingTop": "8px", "paddingBottom": "8px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {"type": "text", "text": situation, "size": "xs", "color": "#888888"},
+                {"type": "text", "text": example, "size": "sm", "color": "#1a73e8",
+                 "weight": "bold", "wrap": True, "margin": "xs"}
+            ]
+        }
+
+    rows = [
+        _fmt_row("單天 + 時間", "新增行程 明天 14:00 品牌會議"),
+        {"type": "separator", "color": "#f0f0f0"},
+        _fmt_row("單天 + 全天", "新增行程 05/01 全天 法國假期"),
+        {"type": "separator", "color": "#f0f0f0"},
+        _fmt_row("連續多天 + 全天", "新增行程 05/01~05/03 全天 法國出差"),
+        {"type": "separator", "color": "#f0f0f0"},
+        _fmt_row("連續多天 + 時間", "新增行程 05/01~05/03 09:00 展覽佈置"),
+        {"type": "separator", "color": "#f0f0f0"},
+        _fmt_row("加地點（@）", "新增行程 明天 14:00 品牌會議 @台北辦公室"),
+        {"type": "separator", "color": "#f0f0f0"},
+        {
+            "type": "box", "layout": "vertical",
+            "paddingTop": "8px", "paddingBottom": "8px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {"type": "text", "text": "日期格式", "size": "xs", "color": "#888888"},
+                {"type": "text", "text": "MM/DD・今天・明天・後天・下週一～下週日",
+                 "size": "xs", "color": "#555555", "wrap": True, "margin": "xs"}
+            ]
+        }
+    ]
+
+    if error_hint:
+        rows.insert(0, {
+            "type": "box", "layout": "horizontal",
+            "backgroundColor": "#fff3e0", "paddingAll": "10px",
+            "contents": [
+                {"type": "text", "text": f"⚠️ {error_hint}",
+                 "size": "xs", "color": "#e65100", "wrap": True}
+            ]
+        })
+        rows.insert(1, {"type": "separator", "color": "#f0f0f0"})
+
+    return {
+        "type": "flex",
+        "altText": "📅 新增行程格式說明",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "backgroundColor": "#1a73e8", "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "📅 新增行程",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": "指令格式參考",
+                     "color": "#c7dcfc", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": rows
+            }
+        }
+    }
+
+
+def build_flex_event_created(title: str, date_str: str, time_str: str, location: str = "") -> dict:
+    """行程建立成功通知卡片"""
+    body = [
+        {"type": "box", "layout": "horizontal", "spacing": "sm",
+         "paddingTop": "12px", "paddingBottom": "6px",
+         "paddingStart": "14px", "paddingEnd": "14px",
+         "contents": [
+             {"type": "text", "text": "標題", "size": "xs", "color": "#888888", "flex": 0},
+             {"type": "text", "text": title, "size": "sm", "color": "#222222",
+              "flex": 1, "wrap": True, "weight": "bold"}
+         ]},
+        {"type": "separator", "color": "#f0f0f0"},
+        {"type": "box", "layout": "horizontal", "spacing": "sm",
+         "paddingTop": "6px", "paddingBottom": "6px",
+         "paddingStart": "14px", "paddingEnd": "14px",
+         "contents": [
+             {"type": "text", "text": "日期", "size": "xs", "color": "#888888", "flex": 0},
+             {"type": "text", "text": date_str, "size": "sm", "color": "#333333", "flex": 1}
+         ]},
+    ]
+    if time_str:
+        body.append({"type": "separator", "color": "#f0f0f0"})
+        body.append({"type": "box", "layout": "horizontal", "spacing": "sm",
+                     "paddingTop": "6px", "paddingBottom": "6px",
+                     "paddingStart": "14px", "paddingEnd": "14px",
+                     "contents": [
+                         {"type": "text", "text": "時間", "size": "xs", "color": "#888888", "flex": 0},
+                         {"type": "text", "text": time_str, "size": "sm", "color": "#333333", "flex": 1}
+                     ]})
+    if location:
+        body.append({"type": "separator", "color": "#f0f0f0"})
+        body.append({"type": "box", "layout": "horizontal", "spacing": "sm",
+                     "paddingTop": "6px", "paddingBottom": "10px",
+                     "paddingStart": "14px", "paddingEnd": "14px",
+                     "contents": [
+                         {"type": "text", "text": "地點", "size": "xs", "color": "#888888", "flex": 0},
+                         {"type": "text", "text": location, "size": "sm", "color": "#333333",
+                          "flex": 1, "wrap": True}
+                     ]})
+
+    return {
+        "type": "flex",
+        "altText": f"✅ 行程已建立：{title}",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "backgroundColor": "#2e7d32", "paddingAll": "14px",
+                "contents": [
+                    {"type": "text", "text": "✅ 行程已建立",
+                     "color": "#ffffff", "size": "md", "weight": "bold"},
+                    {"type": "text", "text": "已加入 Google 日曆",
+                     "color": "#c8e6c9", "size": "xxs", "margin": "xs"}
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": body
             }
         }
     }

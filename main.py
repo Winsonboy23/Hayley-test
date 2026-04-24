@@ -24,6 +24,7 @@ from calendar_handler import (
     get_flex_today, get_flex_tomorrow, get_flex_range,
     get_flex_this_month, get_flex_next_month,
     get_flex_by_month, search_flex_events,
+    create_calendar_event,
 )
 from flex_builder import (
     build_flex_single, build_flex_carousel,
@@ -34,6 +35,7 @@ from flex_builder import (
     build_flex_event_reminder, build_flex_draft_ready,
     build_flex_email_search, build_flex_drafts_list,
     build_flex_unread_emails,
+    build_flex_add_event_help, build_flex_event_created,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -175,6 +177,108 @@ _SKIP_SENDER_KEYWORDS = [
     "noreply", "no-reply", "donotreply", "do-not-reply",
     "newsletter", "notification", "mailer", "automated",
 ]
+
+def _parse_add_event(text: str) -> dict | None:
+    """
+    解析「新增行程」指令，回傳 dict 或 None（格式錯誤）
+    格式：新增行程 日期[~結束日] 時間|全天 標題 [@地點]
+    """
+    import re
+    from datetime import date as date_cls
+
+    t = text.strip()
+    # 移除指令前綴
+    for prefix in ["新增行程", "新增"]:
+        if t.startswith(prefix):
+            t = t[len(prefix):].strip()
+            break
+    else:
+        return None
+
+    # 抽取地點（@xxx）
+    location = ""
+    loc_match = re.search(r"@(.+)$", t)
+    if loc_match:
+        location = loc_match.group(1).strip()
+        t = t[:loc_match.start()].strip()
+
+    # 切 token
+    tokens = t.split()
+    if len(tokens) < 3:
+        return None
+
+    today = datetime.now(TAIPEI_TZ).date()
+
+    def _resolve_date(s: str):
+        """將各種日期格式轉成 date 物件"""
+        weekday_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6}
+        if s == "今天":
+            return today
+        if s == "明天":
+            return today + timedelta(days=1)
+        if s == "後天":
+            return today + timedelta(days=2)
+        m = re.match(r"下週([一二三四五六日])", s)
+        if m:
+            target_wd = weekday_map[m.group(1)]
+            days_ahead = (target_wd - today.weekday() + 7) % 7
+            days_ahead = days_ahead if days_ahead else 7
+            return today + timedelta(days=days_ahead + 7 - 7)
+        m = re.match(r"^(\d{1,2})/(\d{1,2})$", s)
+        if m:
+            month, day = int(m.group(1)), int(m.group(2))
+            year = today.year
+            try:
+                d = date_cls(year, month, day)
+                if d < today:
+                    d = date_cls(year + 1, month, day)
+                return d
+            except ValueError:
+                return None
+        return None
+
+    # 第一個 token：日期（可能含 ~）
+    date_token = tokens[0]
+    if "~" in date_token:
+        parts = date_token.split("~", 1)
+        start_date = _resolve_date(parts[0])
+        end_date = _resolve_date(parts[1])
+    else:
+        start_date = _resolve_date(date_token)
+        end_date = start_date
+
+    if not start_date or not end_date:
+        return None
+
+    # 第二個 token：時間或「全天」
+    time_token = tokens[1]
+    if time_token == "全天":
+        start_time = None
+        time_display = "全天"
+    elif re.match(r"^\d{1,2}:\d{2}$", time_token):
+        start_time = time_token.zfill(5)
+        time_display = start_time
+    else:
+        return None
+
+    # 剩餘：標題
+    title = " ".join(tokens[2:]).strip()
+    if not title:
+        return None
+
+    return {
+        "title": title,
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": end_date.strftime("%Y-%m-%d"),
+        "start_time": start_time,
+        "time_display": time_display,
+        "location": location,
+        "date_display": (
+            f"{start_date.strftime('%m/%d')}～{end_date.strftime('%m/%d')}"
+            if start_date != end_date else start_date.strftime("%m/%d")
+        ),
+    }
+
 
 def _is_obviously_low(subject: str, from_email: str) -> bool:
     """規則判斷是否為明顯低重要度信件，是則跳過 AI，直接忽略"""
@@ -413,6 +517,31 @@ async def handle_line_message(text: str, reply_token: str):
                     await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"{month}月"))
             else:
                 await reply_message(reply_token, "請輸入 1-12 月")
+            return
+
+        # ── 新增行程 ──
+        if t.startswith("新增行程") or t.startswith("新增"):
+            parsed = _parse_add_event(t)
+            if not parsed:
+                await reply_flex(reply_token, build_flex_add_event_help("格式有誤，請參考以下範例"))
+                return
+            try:
+                await create_calendar_event(
+                    title=parsed["title"],
+                    start_date=parsed["start_date"],
+                    end_date=parsed["end_date"],
+                    start_time=parsed["start_time"],
+                    location=parsed["location"]
+                )
+                await reply_flex(reply_token, build_flex_event_created(
+                    title=parsed["title"],
+                    date_str=parsed["date_display"],
+                    time_str=parsed["time_display"],
+                    location=parsed["location"]
+                ))
+            except Exception as e:
+                print(f"create_calendar_event error: {e}", flush=True)
+                await reply_message(reply_token, "⚠️ 行程建立失敗，請稍後再試")
             return
 
         # ── 搜尋行程 ──

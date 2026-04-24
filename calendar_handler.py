@@ -7,6 +7,7 @@ from googleapiclient.discovery import build
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/tasks.readonly",
 ]
 
@@ -157,6 +158,43 @@ def fetch_events(service, cal_id: str, cal_name: str, time_min, time_max, seen: 
             "calendar": cal_name,
         })
     return events
+
+
+async def create_calendar_event(
+    title: str,
+    start_date: str,
+    end_date: str,
+    start_time: str = None,
+    location: str = ""
+) -> str:
+    """建立 Google Calendar 行程，回傳建立結果訊息"""
+    service = get_calendar_service()
+
+    if start_time:
+        # 有時間：timed event
+        start_dt = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
+        start_dt = start_dt.replace(tzinfo=TAIPEI_TZ)
+        # 結束時間預設 +1 小時（若多天則結束日當天同時間）
+        end_dt = datetime.strptime(f"{end_date} {start_time}", "%Y-%m-%d %H:%M")
+        end_dt = end_dt.replace(tzinfo=TAIPEI_TZ) + timedelta(hours=1)
+        event_body = {
+            "summary": title,
+            "location": location,
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": "Asia/Taipei"},
+            "end":   {"dateTime": end_dt.isoformat(),   "timeZone": "Asia/Taipei"},
+        }
+    else:
+        # 全天 event（end date exclusive，需 +1 天）
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        event_body = {
+            "summary": title,
+            "location": location,
+            "start": {"date": start_date},
+            "end":   {"date": end_dt.strftime("%Y-%m-%d")},
+        }
+
+    event = service.events().insert(calendarId="primary", body=event_body).execute()
+    return event.get("id", "")
 
 
 async def get_tomorrow_events() -> list:
