@@ -5,7 +5,10 @@ import hashlib
 import hmac
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+
+TAIPEI_TZ = timezone(timedelta(hours=8))
 
 load_dotenv()
 
