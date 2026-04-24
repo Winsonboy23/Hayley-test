@@ -93,6 +93,7 @@ def _build_event_row(event: dict, color: dict) -> dict:
     date_label = _parse_date(event["start"])
     title = event.get("summary", "（無標題）")
     all_day = _is_all_day(event)
+    is_task = event.get("is_task", False)
 
     contents = [
         {
@@ -116,7 +117,8 @@ def _build_event_row(event: dict, color: dict) -> dict:
         }
     ]
 
-    if not all_day:
+    if is_task or not all_day:
+        badge_text = "☑ 工作" if is_task else _parse_time(event["start"]["dateTime"])
         contents.append({
             "type": "box",
             "layout": "vertical",
@@ -129,7 +131,7 @@ def _build_event_row(event: dict, color: dict) -> dict:
             "flex": 0,
             "contents": [{
                 "type": "text",
-                "text": _parse_time(event["start"]["dateTime"]),
+                "text": badge_text,
                 "size": "xxs",
                 "color": color["dark"]
             }]
@@ -160,7 +162,13 @@ def _build_single_event_row(event: dict, color: dict) -> dict:
     """Row for single-day view: colored dot + time/全天 badge + title."""
     title = event.get("summary", "（無標題）")
     all_day = _is_all_day(event)
-    time_text = "全天" if all_day else _parse_time(event["start"]["dateTime"])
+    is_task = event.get("is_task", False)
+    if is_task:
+        time_text = "☑ 工作"
+    elif all_day:
+        time_text = "全天"
+    else:
+        time_text = _parse_time(event["start"]["dateTime"])
 
     return {
         "type": "box",

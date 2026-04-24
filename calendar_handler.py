@@ -6,7 +6,8 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 SCOPES = [
-    "https://www.googleapis.com/auth/calendar.readonly"
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/tasks.readonly",
 ]
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -23,6 +24,74 @@ def get_calendar_service():
         else:
             raise Exception("Google Token 無效，請重新授權")
     return build("calendar", "v3", credentials=creds)
+
+
+def get_tasks_service():
+    """建立 Google Tasks API 連線（失敗時回傳 None，不中斷主流程）"""
+    try:
+        token_json = os.getenv("GOOGLE_TOKEN_JSON")
+        if not token_json:
+            return None
+        creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                return None
+        return build("tasks", "v1", credentials=creds)
+    except Exception as e:
+        print(f"[TASKS] 無法建立 Tasks 服務：{e}", flush=True)
+        return None
+
+
+def _fetch_tasks_for_range(time_min: datetime, time_max: datetime) -> list:
+    """從 Google Tasks 抓取指定時間範圍內未完成的工作"""
+    try:
+        service = get_tasks_service()
+        if not service:
+            return []
+
+        task_lists_result = service.tasklists().list(maxResults=20).execute()
+        due_min = time_min.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        due_max = time_max.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+        tasks = []
+        for task_list in task_lists_result.get("items", []):
+            list_id = task_list["id"]
+            try:
+                result = service.tasks().list(
+                    tasklist=list_id,
+                    dueMin=due_min,
+                    dueMax=due_max,
+                    showCompleted=False,
+                    showHidden=False
+                ).execute()
+            except Exception as e:
+                print(f"[TASKS] 清單 {list_id} 抓取失敗：{e}", flush=True)
+                continue
+
+            for task in result.get("items", []):
+                if task.get("status") == "completed":
+                    continue
+                due = task.get("due", "")
+                if not due:
+                    continue
+                due_dt = datetime.fromisoformat(due.replace("Z", "+00:00"))
+                date_str = due_dt.astimezone(TAIPEI_TZ).strftime("%Y-%m-%d")
+                tasks.append({
+                    "summary": task.get("title", "（未命名工作）"),
+                    "calendarId": "__tasks__",
+                    "start": {"date": date_str},
+                    "end": {"date": date_str},
+                    "location": "",
+                    "is_task": True,
+                })
+
+        print(f"[TASKS] 抓到 {len(tasks)} 筆工作", flush=True)
+        return tasks
+    except Exception as e:
+        print(f"[TASKS] 抓取失敗（可能需重新授權）：{e}", flush=True)
+        return []
 
 
 EXCLUDED_CALENDARS = {"台灣的節慶假日", "台灣節慶假日", "Holidays in Taiwan"}
@@ -345,19 +414,43 @@ async def _flex_fetch(time_min, time_max, q: str = None):
     service = get_calendar_service()
     calendar_list = _get_calendars_info(service)
 
-    results = await asyncio.gather(*[
+    # 平行抓行事曆事件（+ 若非搜尋模式則同時抓 Tasks）
+    gather_targets = [
         asyncio.to_thread(_fetch_raw_events_isolated, cal["id"], time_min, time_max, q)
         for cal in calendar_list
-    ])
+    ]
+    if not q:
+        gather_targets.append(asyncio.to_thread(_fetch_tasks_for_range, time_min, time_max))
+
+    results = await asyncio.gather(*gather_targets)
 
     seen = set()
     events = []
-    for batch in results:
+    cal_results = results[:-1] if not q else results
+    task_results = results[-1] if not q else []
+
+    for batch in cal_results:
         for ev in batch:
             key = f"{ev['summary']}_{ev['start'].get('dateTime') or ev['start'].get('date')}"
             if key not in seen:
                 seen.add(key)
                 events.append(ev)
+
+    # 合併 Tasks，並加入虛擬「工作」日曆
+    if task_results:
+        tasks_cal = {
+            "id": "__tasks__",
+            "summary": "工作",
+            "colorId": None,
+            "backgroundColor": "#2e7d32",  # 深綠色
+        }
+        calendar_list = list(calendar_list) + [tasks_cal]
+        for task in task_results:
+            key = f"{task['summary']}_{task['start'].get('date')}"
+            if key not in seen:
+                seen.add(key)
+                events.append(task)
+
     return calendar_list, events
 
 
