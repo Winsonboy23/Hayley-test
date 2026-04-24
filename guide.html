@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>海莉 AI 助理 — 快速指南</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Noto Sans TC", sans-serif;
+      background: #f5f7fa;
+      color: #2d2d2d;
+      font-size: 14px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+      color: white;
+      text-align: center;
+      padding: 40px 24px 56px;
+    }
+    .hero h1 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .hero p  { font-size: 13px; opacity: .85; }
+
+    /* ── Grid wrapper ── */
+    .grid {
+      max-width: 860px;
+      margin: -28px auto 0;
+      padding: 0 16px 48px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    }
+    .card.full { grid-column: 1 / -1; }
+
+    .card-head {
+      padding: 14px 18px 12px;
+      color: white;
+      font-weight: 800;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-head .sub {
+      font-size: 11px;
+      font-weight: 400;
+      opacity: .8;
+      margin-left: auto;
+    }
+
+    /* ── Command rows ── */
+    .cmd { padding: 0 18px; }
+    .cmd-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid #f3f3f3;
+    }
+    .cmd-row:last-child { border-bottom: none; }
+    .tag {
+      background: #e8f0fe;
+      color: #1558b0;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-family: monospace;
+    }
+    .tag.gray { background: #f0f0f0; color: #999; }
+    .tag.red  { background: #ffebee; color: #c62828; }
+    .desc { font-size: 12px; color: #666; line-height: 1.5; }
+    .desc strong { color: #333; }
+
+    /* ── Push cards (3-col) ── */
+    .push-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      padding: 14px 18px;
+    }
+    @media (max-width: 600px) { .push-grid { grid-template-columns: 1fr; } }
+    .push-item { text-align: center; padding: 6px 10px; }
+    .push-time {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1a73e8;
+      line-height: 1.1;
+    }
+    .push-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #555;
+      margin: 3px 0 6px;
+    }
+    .push-item ul {
+      list-style: none;
+      font-size: 11px;
+      color: #777;
+      text-align: left;
+      line-height: 1.8;
+    }
+    .push-divider {
+      width: 1px;
+      background: #f0f0f0;
+      margin: 8px 0;
+    }
+
+    /* ── Email flow ── */
+    .flow-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 14px 18px;
+    }
+    @media (max-width: 600px) { .flow-grid { grid-template-columns: 1fr; } }
+    .flow-col {
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .flow-col.blacklist { background: #fce4ec; border: 1.5px solid #f48fb1; }
+    .flow-col.known     { background: #e8f5e9; border: 1.5px solid #a5d6a7; }
+    .flow-col.unknown   { background: #fff8e1; border: 1.5px solid #ffe082; }
+    .flow-col h4 {
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 7px;
+    }
+    .flow-col.blacklist h4 { color: #c62828; }
+    .flow-col.known     h4 { color: #2e7d32; }
+    .flow-col.unknown   h4 { color: #e65100; }
+    .flow-col li { color: #555; }
+
+    /* ── Add event format ── */
+    .fmt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 14px 18px;
+    }
+    @media (max-width: 600px) { .fmt-grid { grid-template-columns: 1fr; } }
+    .fmt-col h4 {
+      font-size: 11px;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+    .fmt-col ul {
+      list-style: none;
+      font-size: 12px;
+      color: #555;
+      line-height: 1.9;
+    }
+    .example-list {
+      padding: 0 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .example-row {
+      background: #f5f8ff;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      color: #1558b0;
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    /* ── Notion ── */
+    .notion-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 14px 18px;
+    }
+    @media (max-width: 600px) { .notion-cols { grid-template-columns: 1fr; } }
+    .notion-col h4 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #444;
+      margin-bottom: 7px;
+    }
+    .notion-col ul {
+      list-style: none;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.9;
+    }
+    .notion-col li span.req {
+      background: #e53935;
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-left: 3px;
+      vertical-align: middle;
+    }
+    .tip {
+      margin: 0 18px 14px;
+      background: #fffde7;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #7d6608;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: #bbb;
+      font-size: 12px;
+    }
+    footer a { color: #1a73e8; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🤖 海莉 AI 助理</h1>
+  <p>LINE 智慧秘書 — 快速指南</p>
+</div>
+
+<div class="grid">
+
+  <!-- ── 行事曆指令 ── -->
+  <div class="card">
+    <div class="card-head" style="background:#1a73e8;">
+      📅 行事曆指令
+    </div>
+    <div class="cmd">
+      <div class="cmd-row">
+        <span class="tag">今日行程</span>
+        <span class="desc">今天（也可輸入「今天」「今日」）</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag">明日行程</span>
+        <span class="desc">明天（也可輸入「明天」）</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag">本週行程</span>
+        <span class="desc">未來 7 天，左右滑動切換日曆</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag">本月行程</span>
+        <span class="desc">本月全部</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag">下個月行程</span>
+        <span class="desc">下個月全部</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag">N月行程</span>
+        <span class="desc">指定月份，如「五月行程」「5月行程」</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag gray">搜尋 關鍵字</span>
+        <span class="desc">跨日曆搜尋，需手動輸入</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 信件指令 ── -->
+  <div class="card">
+    <div class="card-head" style="background:#d50000;">
+      📩 信件指令
+    </div>
+    <div class="cmd">
+      <div class="cmd-row">
+        <span class="tag">信件</span>
+        <span class="desc">未讀封數 + 草稿數量</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag">未讀信件</span>
+        <span class="desc">列出所有未讀信件</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag">信件草稿</span>
+        <span class="desc">列出 Gmail 草稿夾待發信件</span>
+      </div>
+      <div class="cmd-row">
+        <span class="tag gray">搜尋信件 關鍵字</span>
+        <span class="desc">搜尋 Gmail，需手動輸入</span>
+      </div>
+    </div>
+    <div style="padding:10px 18px 14px;">
+      <div style="background:#f0f7ff;border-radius:8px;padding:9px 12px;font-size:12px;color:#1558b0;line-height:1.7;">
+        💡 <strong>指令選單</strong>：輸入任何不認識的內容，系統自動回傳行事曆＋信件指令卡片<br>
+        ✨ <strong>小撇步</strong>：直接輸入「今日」可快速查看當日行程
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 新增行程 ── -->
+  <div class="card full">
+    <div class="card-head" style="background:#0b8043;">
+      ➕ 新增行程指令
+      <span class="sub">不消耗 AI token</span>
+    </div>
+    <div class="fmt-grid">
+      <div class="fmt-col">
+        <h4>日期格式</h4>
+        <ul>
+          <li>📌 今天 / 明天 / 後天</li>
+          <li>📌 下週一 ～ 下週日</li>
+          <li>📌 MM/DD（例：05/01）</li>
+          <li>📌 X月Y日 / X月Y號（五月一日、5月1號）</li>
+          <li>📌 連續多天：日期～日期（支援全形 ～）</li>
+        </ul>
+      </div>
+      <div class="fmt-col">
+        <h4>時間格式</h4>
+        <ul>
+          <li>⏰ 全天</li>
+          <li>⏰ HH:MM（例：14:00）</li>
+          <li>⏰ 中文：兩點 / 三點半</li>
+          <li>⏰ 上午／下午／晚上 + X點</li>
+          <li style="color:#999;font-size:11px;">無前綴：1–6點→下午　7–12點→上午</li>
+        </ul>
+      </div>
+    </div>
+    <div class="example-list">
+      <div class="example-row">新增行程 明天 下午兩點 品牌會議</div>
+      <div class="example-row">新增行程 五月一日 全天 連假休息</div>
+      <div class="example-row">新增行程 05/01～05/03 全天 法國出差</div>
+      <div class="example-row">新增行程 明天 14:00 主管會議 @台北辦公室</div>
+    </div>
+  </div>
+
+  <!-- ── 自動推播 ── -->
+  <div class="card">
+    <div class="card-head" style="background:#f57c00;">
+      🔔 每日自動推播
+    </div>
+    <div class="push-grid">
+      <div class="push-item">
+        <div class="push-time">08:00</div>
+        <div class="push-label">☀️ 早晨摘要</div>
+        <ul>
+          <li>📅 今日行程件數</li>
+          <li>📩 未讀信件封數</li>
+          <li>📋 行程列表（前5）</li>
+        </ul>
+      </div>
+      <div class="push-divider"></div>
+      <div class="push-item">
+        <div class="push-time">18:00</div>
+        <div class="push-label">🌙 晚間推播</div>
+        <ul>
+          <li>📅 明日行程件數</li>
+          <li>📩 未讀信件封數</li>
+          <li>📋 行程列表（前5）</li>
+        </ul>
+      </div>
+      <div class="push-divider"></div>
+      <div class="push-item">
+        <div class="push-time" style="font-size:18px;">⏰</div>
+        <div class="push-label">活動提醒</div>
+        <ul>
+          <li>開始前 <strong>1 小時</strong></li>
+          <li>自動推送一次</li>
+          <li>含地點資訊</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 新信件處理 ── -->
+  <div class="card">
+    <div class="card-head" style="background:#546e7a;">
+      ✉️ 新信件自動處理
+    </div>
+    <div class="flow-grid">
+      <div class="flow-col blacklist">
+        <h4>🚫 黑名單聯絡人</h4>
+        <ul>
+          <li>直接略過</li>
+          <li>不通知</li>
+          <li>不消耗 AI</li>
+        </ul>
+      </div>
+      <div class="flow-col known">
+        <h4>✅ 已知聯絡人</h4>
+        <ul>
+          <li>查詢對應模板</li>
+          <li>AI 生成草稿</li>
+          <li>存入 Gmail</li>
+          <li>LINE 藍色通知</li>
+        </ul>
+      </div>
+      <div class="flow-col unknown">
+        <h4>⚠️ 陌生寄件人</h4>
+        <ul>
+          <li>規則過濾廣告</li>
+          <li>AI 判斷重要度</li>
+          <li>LINE 推播通知</li>
+          <li>可按鈕起草回信</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Notion 資料庫 ── -->
+  <div class="card full">
+    <div class="card-head" style="background:#6d4c41;">
+      🗂 Notion 資料庫
+    </div>
+    <div class="notion-cols">
+      <div class="notion-col">
+        <h4>👤 聯絡人資料庫</h4>
+        <ul>
+          <li>姓名</li>
+          <li>Email <span class="req">必填</span> — 比對寄件人</li>
+          <li>職稱／角色 — 需與模板一致</li>
+          <li>店／單位 — 顯示於通知</li>
+          <li>🚫 黑名單 — 勾選後直接略過</li>
+        </ul>
+      </div>
+      <div class="notion-col">
+        <h4>📝 信件模板資料庫</h4>
+        <ul>
+          <li>角色 <span class="req">必填</span> — 對應聯絡人職稱</li>
+          <li>模板內容 — AI 撰稿風格參考</li>
+          <li style="color:#e65100;font-size:11px;">⚠️ 角色名稱需與聯絡人完全一致</li>
+        </ul>
+      </div>
+    </div>
+    <div class="tip">
+      💡 草稿語言自動跟隨來信語言 &nbsp;·&nbsp; 找不到模板仍會生成草稿，但品質較低 &nbsp;·&nbsp; Google Tasks 工作會顯示於行事曆（綠色 ☑ 工作 標籤）
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  海莉 AI 助理 · FastAPI + Gemini 2.5 Pro + LINE Bot + Google Calendar / Tasks<br>
+  <span style="margin-top:6px;display:block;">
+    <a href="guideline.html">📖 完整功能說明文件</a>
+  </span>
+</footer>
+
+</body>
+</html>
