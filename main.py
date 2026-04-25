@@ -20,7 +20,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 from gmail_handler import (
     get_email_by_id, create_draft,
     count_today_emails, count_drafts, count_unread_emails,
-    setup_gmail_watch, search_emails, get_drafts_list, get_unread_emails
+    setup_gmail_watch, search_emails, get_drafts_list, get_unread_emails,
+    get_recent_emails, get_emails_from_senders,
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
@@ -37,16 +38,16 @@ from flex_builder import (
     build_flex_contact, build_flex_tasks, build_flex_menu,
     build_flex_event_reminder, build_flex_draft_ready,
     build_flex_email_search, build_flex_drafts_list,
-    build_flex_unread_emails,
+    build_flex_unread_emails, build_flex_email_carousel,
     build_flex_add_event_help, build_flex_event_created,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
     find_contact_by_email, get_template_by_role,
-    get_contact_info_by_name
+    get_contact_info_by_name, get_contact_emails_by_importance,
 )
 from gemini_handler import (
-    generate_reply_draft, classify_email_importance,
+    generate_reply_draft,
     answer_work_question, summarize_schedule
 )
 from line_handler import (
@@ -169,17 +170,6 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
         return {"status": "error", "detail": str(e)}
 
 
-# ── 規則前置過濾（避免明顯廣告信消耗 AI token）──
-_SKIP_SUBJECT_KEYWORDS = [
-    "unsubscribe", "newsletter", "no-reply", "noreply", "do-not-reply", "donotreply",
-    "電子報", "訂閱通知", "系統通知", "優惠", "促銷", "折扣", "限時",
-    "notification", "alert", "automated", "auto-reply", "do not reply",
-    "account activity", "security alert", "verify your", "confirm your",
-]
-_SKIP_SENDER_KEYWORDS = [
-    "noreply", "no-reply", "donotreply", "do-not-reply",
-    "newsletter", "notification", "mailer", "automated",
-]
 
 def _parse_add_event(text: str) -> dict | None:
     """
@@ -358,30 +348,19 @@ def _parse_add_event(text: str) -> dict | None:
     }
 
 
-def _is_obviously_low(subject: str, from_email: str) -> bool:
-    """規則判斷是否為明顯低重要度信件，是則跳過 AI，直接忽略"""
-    subject_lower = subject.lower()
-    email_lower = from_email.lower()
-    if any(kw in subject_lower for kw in _SKIP_SUBJECT_KEYWORDS):
-        return True
-    if any(kw in email_lower for kw in _SKIP_SENDER_KEYWORDS):
-        return True
-    return False
-
 
 async def process_new_email(history_id: str):
-    """處理新進信件的核心流程"""
+    """處理新進信件的核心流程（只處理 Notion 聯絡人，依重要度分流）"""
     try:
         from gmail_handler import get_gmail_service
         service = get_gmail_service()
-        
-        # 取得最新一封信
+
         results = service.users().messages().list(
             userId="me",
             maxResults=1,
             labelIds=["INBOX"]
         ).execute()
-        
+
         messages = results.get("messages", [])
         if not messages:
             return
@@ -391,67 +370,26 @@ async def process_new_email(history_id: str):
         if _mark_once(processed_message_ids, message_id, PROCESSED_EMAIL_TTL_SECONDS):
             print(f"[DEBUG] 略過重複 messageId：{message_id}", flush=True)
             return
-        
-        # 取得信件內容
+
         email = await get_email_by_id(message_id)
         print(f"[DEBUG] 最新信件：from={email['from_email']} subject={email['subject']}", flush=True)
 
-        # 查詢寄件人是否在 Notion 聯絡人名單
+        # 非聯絡人 → 完全略過
         contact = await find_contact_by_email(email["from_email"])
-        is_unknown = contact is None
-        print(f"[DEBUG] Notion 查詢結果：{'找到' if contact else '陌生人'}", flush=True)
-
-        # 黑名單聯絡人 → 直接略過，不通知、不消耗 AI token
-        if contact and contact.get("blacklisted"):
-            print(f"[BLACKLIST] 黑名單略過：{email['from_email']} | {email['subject']}", flush=True)
+        if not contact:
+            print(f"[SKIP] 非聯絡人：{email['from_email']}", flush=True)
             return
 
-        if is_unknown:
-            sender_name = email["from_name"] or email["from_email"]
+        importance = contact.get("importance", "低")
+        sender_name = contact["name"]
+        sender_role = contact["role"]
+        sender_unit = contact["unit"]
+        thread_id = latest_message.get("threadId", message_id)
 
-            # 規則前置過濾：明顯廣告 / 系統信 → 直接略過，不消耗 AI token
-            if _is_obviously_low(email["subject"], email["from_email"]):
-                print(f"[FILTER] 規則過濾略過：{email['from_email']} | {email['subject']}", flush=True)
-                return
+        print(f"[DEBUG] 聯絡人重要度：{importance} | {sender_name}", flush=True)
 
-            # 陌生人 → AI 判斷重要性
-            try:
-                classification = await classify_email_importance(
-                    subject=email["subject"],
-                    email_body=email["body"]
-                )
-            except Exception:
-                classification = {"importance": "medium", "should_reply": True, "reason": "無法自動判斷", "category": "其他"}
-
-            importance   = classification.get("importance", "medium")
-            should_reply = classification.get("should_reply", True)
-            reason       = classification.get("reason", "")
-
-            # 若需要回覆，暫存等待使用者按按鈕
-            if should_reply:
-                _pending_drafts[message_id] = {
-                    "email": email,
-                    "thread_id": latest_message.get("threadId", message_id),
-                    "expires_at": time.time() + 86400
-                }
-
-            flex = build_flex_email_notification(
-                sender_name=sender_name,
-                subject=email["subject"],
-                is_unknown=True,
-                message_id=message_id,
-                importance=importance,
-                reason=reason,
-                should_reply=should_reply,
-            )
-            await push_flex(flex)
-
-        else:
-            # 已知聯絡人 → 自動生成草稿
-            sender_name = contact["name"]
-            sender_role = contact["role"]
-            sender_unit = contact["unit"]
-
+        if importance == "高":
+            # 自動生成草稿 + 推播
             template = await get_template_by_role(sender_role)
             template_content = template["content"] if template else None
 
@@ -466,7 +404,6 @@ async def process_new_email(history_id: str):
             if not subject.startswith("Re:"):
                 subject = f"Re: {subject}"
 
-            thread_id = latest_message.get("threadId", message_id)
             await create_draft(
                 to_email=email["from_email"],
                 subject=subject,
@@ -474,16 +411,34 @@ async def process_new_email(history_id: str):
                 reply_to_id=thread_id
             )
 
-            flex = build_flex_email_notification(
+            await push_flex(build_flex_email_notification(
                 sender_name=sender_name,
                 subject=email["subject"],
-                is_unknown=False,
                 sender_role=sender_role,
                 sender_unit=sender_unit,
                 draft_ready=True,
-            )
-            await push_flex(flex)
-        
+            ))
+
+        elif importance == "中":
+            # 推播通知 + 起草按鈕
+            _pending_drafts[message_id] = {
+                "email": email,
+                "thread_id": thread_id,
+                "expires_at": time.time() + 86400
+            }
+            await push_flex(build_flex_email_notification(
+                sender_name=sender_name,
+                subject=email["subject"],
+                sender_role=sender_role,
+                sender_unit=sender_unit,
+                should_reply=True,
+                message_id=message_id,
+            ))
+
+        else:
+            # 低（或未填）→ 略過
+            print(f"[SKIP] 重要度低：{sender_name}", flush=True)
+
     except Exception as e:
         import traceback
         print(f"process_new_email error: {e}\n{traceback.format_exc()}", flush=True)
@@ -638,13 +593,19 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"搜尋：{keyword}"))
             return
 
+        # ── 信件 高/中/低（依重要度篩選）──
+        if t in ["信件 高", "信件 中", "信件 低"]:
+            imp = t.split()[-1]  # 高/中/低
+            email_list = await get_contact_emails_by_importance(imp)
+            emails = await get_emails_from_senders(email_list, max_results=10)
+            imp_label = {"高": "🔴 高重要度", "中": "🟡 中重要度", "低": "⚪ 低重要度"}.get(imp, imp)
+            await reply_flex(reply_token, build_flex_email_carousel(emails, f"{imp_label}聯絡人來信"))
+            return
+
         # ── 未讀信件列表 ──
         if t in ["未讀信件", "未讀"]:
-            emails = await get_unread_emails()
-            if not emails:
-                await reply_message(reply_token, "📩 目前沒有未讀信件")
-            else:
-                await reply_flex(reply_token, build_flex_unread_emails(emails))
+            emails = await get_unread_emails(max_results=10)
+            await reply_flex(reply_token, build_flex_email_carousel(emails, "未讀信件"))
             return
 
         # ── 信件草稿列表 ──
@@ -669,11 +630,10 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_flex(reply_token, build_flex_email_search(emails, keyword))
             return
 
-        # ── 信件 / 草稿狀況 ──
-        if t in ["信件", "今日信件", "收信", "草稿", "信件狀況"]:
-            unread_count = await count_unread_emails()
-            draft_count = await count_drafts()
-            await reply_flex(reply_token, build_flex_email_summary(unread_count, draft_count))
+        # ── 信件（近期 10 封）──
+        if t in ["信件", "今日信件", "收信", "信件狀況"]:
+            emails = await get_recent_emails(max_results=10)
+            await reply_flex(reply_token, build_flex_email_carousel(emails, "近期信件"))
             return
 
         # ── 指令清單 / 不認識的輸入 ──

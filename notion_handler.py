@@ -35,8 +35,30 @@ async def find_contact_by_email(email: str) -> dict | None:
         "role": props.get("角色", {}).get("select", {}).get("name", "未知"),
         "unit": props.get("店／單位", {}).get("rich_text", [{}])[0].get("plain_text", ""),
         "email": email,
-        "blacklisted": props.get("黑名單", {}).get("checkbox", False)
+        "importance": props.get("重要度", {}).get("select", {}).get("name", "低"),
     }
+
+
+async def get_contact_emails_by_importance(importance: str) -> list[str]:
+    """取得特定重要度的所有聯絡人 email 清單"""
+    url = f"https://api.notion.com/v1/databases/{CONTACTS_DB_ID}/query"
+    payload = {
+        "filter": {
+            "property": "重要度",
+            "select": {"equals": importance}
+        }
+    }
+    async with httpx.AsyncClient() as client:
+        res = await client.post(url, headers=HEADERS, json=payload)
+        data = res.json()
+
+    emails = []
+    for result in data.get("results", []):
+        props = result["properties"]
+        email_val = props.get("Email", {}).get("email", "")
+        if email_val:
+            emails.append(email_val)
+    return emails
 
 
 async def find_contacts_by_role(role: str) -> list:

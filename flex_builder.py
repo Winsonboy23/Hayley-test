@@ -575,18 +575,16 @@ _IMPORTANCE_MAP = {
 def build_flex_email_notification(
     sender_name: str,
     subject: str,
-    is_unknown: bool,
-    message_id: str = "",
     sender_role: str = "",
     sender_unit: str = "",
     draft_ready: bool = False,
-    importance: str = "",
-    reason: str = "",
     should_reply: bool = False,
+    message_id: str = "",
 ) -> dict:
-    """Email 通知卡片：已知聯絡人顯示草稿提示，陌生人顯示重要度 + 起草按鈕"""
-
-    # 寄件人顯示名稱
+    """聯絡人來信通知卡片
+    高重要度：draft_ready=True（草稿已備妥）
+    中重要度：should_reply=True（顯示起草按鈕）
+    """
     if sender_role and sender_unit:
         sender_display = f"{sender_name}（{sender_unit} {sender_role}）"
     elif sender_role:
@@ -594,60 +592,28 @@ def build_flex_email_notification(
     else:
         sender_display = sender_name
 
-    imp = _IMPORTANCE_MAP.get(importance, {})
-
-    body = []
-
-    # 寄件人列
-    sender_contents = [
-        {"type": "text", "text": "寄件人", "size": "xs", "color": "#888888", "flex": 0},
-        {"type": "text", "text": sender_display, "size": "sm", "color": "#222222",
-         "flex": 1, "wrap": True},
-    ]
-    if is_unknown:
-        sender_contents.append({"type": "text", "text": "⚠️", "size": "sm", "flex": 0})
-    body.append({
-        "type": "box", "layout": "horizontal", "spacing": "sm",
-        "paddingTop": "12px", "paddingStart": "14px", "paddingEnd": "14px",
-        "contents": sender_contents
-    })
-
-    # 主旨列
-    body.append({
-        "type": "box", "layout": "horizontal", "spacing": "sm",
-        "paddingTop": "6px", "paddingBottom": "4px",
-        "paddingStart": "14px", "paddingEnd": "14px",
-        "contents": [
-            {"type": "text", "text": "主旨", "size": "xs", "color": "#888888", "flex": 0},
-            {"type": "text", "text": subject, "size": "sm", "color": "#333333",
-             "flex": 1, "wrap": True},
-        ]
-    })
-
-    # 重要度列（陌生人）
-    if is_unknown and importance and imp:
-        body.append({"type": "separator", "margin": "sm", "color": "#f0f0f0"})
-        body.append({
+    body = [
+        {
             "type": "box", "layout": "horizontal", "spacing": "sm",
-            "paddingTop": "10px", "paddingBottom": "4px",
+            "paddingTop": "12px", "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {"type": "text", "text": "寄件人", "size": "xs", "color": "#888888", "flex": 0},
+                {"type": "text", "text": sender_display, "size": "sm", "color": "#222222",
+                 "flex": 1, "wrap": True},
+            ]
+        },
+        {
+            "type": "box", "layout": "horizontal", "spacing": "sm",
+            "paddingTop": "6px", "paddingBottom": "12px",
             "paddingStart": "14px", "paddingEnd": "14px",
             "contents": [
-                {
-                    "type": "box", "layout": "vertical", "flex": 0,
-                    "backgroundColor": imp["bg"], "cornerRadius": "4px",
-                    "paddingTop": "2px", "paddingBottom": "2px",
-                    "paddingStart": "8px", "paddingEnd": "8px",
-                    "contents": [{"type": "text", "text": f"{imp['emoji']} 重要度 {imp['label']}",
-                                  "size": "xxs", "color": imp["color"], "weight": "bold"}]
-                },
-                {"type": "text", "text": reason, "size": "xs",
-                 "color": "#666666", "flex": 1, "wrap": True}
+                {"type": "text", "text": "主旨", "size": "xs", "color": "#888888", "flex": 0},
+                {"type": "text", "text": subject, "size": "sm", "color": "#333333",
+                 "flex": 1, "wrap": True},
             ]
-        })
+        },
+    ]
 
-    body.append({"type": "box", "layout": "vertical", "height": "8px", "contents": []})
-
-    # Footer
     if draft_ready:
         footer = {
             "type": "box", "layout": "vertical",
@@ -655,7 +621,7 @@ def build_flex_email_notification(
             "contents": [{"type": "text", "text": "✉️ 草稿已備妥，請至 Gmail 確認",
                           "size": "xs", "color": "#2e7d32", "align": "center"}]
         }
-    elif is_unknown and should_reply:
+    elif should_reply:
         footer = {
             "type": "box", "layout": "vertical", "paddingAll": "10px",
             "contents": [{
@@ -674,24 +640,16 @@ def build_flex_email_notification(
     else:
         footer = None
 
-    # Header 顏色
-    if is_unknown:
-        header_color = {"high": "#c62828", "medium": "#e65100", "low": "#546e7a"}.get(importance, "#546e7a")
-        subtitle = "陌生寄件人"
-    else:
-        header_color = "#1a73e8"
-        subtitle = "聯絡人來信"
-
     bubble = {
         "type": "bubble",
         "size": "kilo",
         "header": {
             "type": "box", "layout": "vertical",
-            "backgroundColor": header_color, "paddingAll": "14px",
+            "backgroundColor": "#1a73e8", "paddingAll": "14px",
             "contents": [
                 {"type": "text", "text": "📩 新信件", "color": "#ffffff",
                  "size": "md", "weight": "bold"},
-                {"type": "text", "text": subtitle, "color": "#ffffff99",
+                {"type": "text", "text": "聯絡人來信", "color": "#c7dcfc",
                  "size": "xxs", "margin": "xs"}
             ]
         },
@@ -998,9 +956,12 @@ def build_flex_menu() -> dict:
         title="📩 信件指令",
         subtitle="",
         cmds=[
-            ("📩", "信件", "未讀封數 + 草稿數量", None, True),
-            ("📩", "未讀信件", "列出所有未讀信件", None, True),
+            ("📩", "信件", "近期 10 封信件", None, True),
+            ("📩", "未讀信件", "列出 10 封未讀信件", None, True),
             ("📝", "信件草稿", "列出所有待發草稿", None, True),
+            ("🔴", "信件 高", "重要度高聯絡人的來信", None, True),
+            ("🟡", "信件 中", "重要度中聯絡人的來信", None, True),
+            ("⚪", "信件 低", "重要度低聯絡人的來信", None, True),
             ("🔍", "搜尋信件 關鍵字", "搜尋信件", None, False),
         ]
     )
@@ -1065,6 +1026,91 @@ def build_flex_event_reminder(event_name: str, event_time: str, location: str = 
                 "contents": body_contents
             }
         }
+    }
+
+
+# ── 信件列表（共用 2 張卡片輪播）────────────────────────────────────
+def build_flex_email_carousel(emails: list, title: str) -> dict:
+    """信件列表輪播：最多 10 封，分 2 張卡片，每張 5 封"""
+
+    def _email_row(email):
+        sender = email.get("from_name") or email.get("from_email", "未知")
+        subject = email.get("subject", "（無主旨）")
+        date_str = (email.get("date") or "")[:10]
+        return {
+            "type": "box", "layout": "vertical",
+            "paddingTop": "9px", "paddingBottom": "9px",
+            "paddingStart": "14px", "paddingEnd": "14px",
+            "contents": [
+                {"type": "text", "text": subject, "size": "sm", "color": "#222222",
+                 "weight": "bold", "wrap": True},
+                {"type": "box", "layout": "horizontal", "margin": "xs", "spacing": "sm",
+                 "contents": [
+                     {"type": "text", "text": sender, "size": "xs", "color": "#888888",
+                      "flex": 1, "wrap": False},
+                     {"type": "text", "text": date_str, "size": "xs", "color": "#aaaaaa",
+                      "flex": 0}
+                 ]}
+            ]
+        }
+
+    def _build_bubble(batch, page_num, total_pages):
+        body_contents = []
+        for i, email in enumerate(batch):
+            body_contents.append(_email_row(email))
+            if i < len(batch) - 1:
+                body_contents.append(SEPARATOR)
+        header_contents = [
+            {"type": "text", "text": f"📩 {title}", "color": "#ffffff",
+             "size": "md", "weight": "bold"},
+        ]
+        if total_pages > 1:
+            header_contents.append(
+                {"type": "text", "text": f"{page_num} / {total_pages}",
+                 "color": "#c7dcfc", "size": "xxs", "margin": "xs"}
+            )
+        return {
+            "type": "bubble", "size": "kilo",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "backgroundColor": "#d50000", "paddingAll": "14px",
+                "contents": header_contents
+            },
+            "body": {
+                "type": "box", "layout": "vertical",
+                "paddingAll": "0px", "spacing": "none",
+                "contents": body_contents
+            }
+        }
+
+    if not emails:
+        return {
+            "type": "flex",
+            "altText": f"📩 {title}",
+            "contents": {
+                "type": "bubble", "size": "kilo",
+                "header": {
+                    "type": "box", "layout": "vertical",
+                    "backgroundColor": "#d50000", "paddingAll": "14px",
+                    "contents": [{"type": "text", "text": f"📩 {title}",
+                                  "color": "#ffffff", "size": "md", "weight": "bold"}]
+                },
+                "body": {
+                    "type": "box", "layout": "vertical", "paddingAll": "24px",
+                    "contents": [{"type": "text", "text": "沒有找到信件",
+                                  "size": "sm", "color": "#888888", "align": "center"}]
+                }
+            }
+        }
+
+    chunks = [emails[i:i+5] for i in range(0, min(len(emails), 10), 5)]
+    total_pages = len(chunks)
+    bubbles = [_build_bubble(chunk, i + 1, total_pages) for i, chunk in enumerate(chunks)]
+
+    return {
+        "type": "flex",
+        "altText": f"📩 {title}（共 {len(emails)} 封）",
+        "contents": {"type": "carousel", "contents": bubbles}
     }
 
 

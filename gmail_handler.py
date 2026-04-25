@@ -32,35 +32,75 @@ def get_gmail_service():
 
 
 async def get_recent_emails(max_results: int = 10) -> list:
-    """取得最近的信件列表"""
+    """取得最近 N 封信件（寄件人 + 主旨，不含內文）"""
     service = get_gmail_service()
     results = service.users().messages().list(
         userId="me",
         maxResults=max_results,
         labelIds=["INBOX"]
     ).execute()
-    
+
     messages = results.get("messages", [])
     emails = []
-    
+
     for msg in messages:
         detail = service.users().messages().get(
             userId="me",
-            messageId=msg["id"],
-            format="full"
+            id=msg["id"],
+            format="metadata",
+            metadataHeaders=["Subject", "From", "Date"]
         ).execute()
-        
+
         headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
-        body = extract_email_body(detail["payload"])
-        
+        from_raw = headers.get("From", "")
+
         emails.append({
             "id": msg["id"],
             "subject": headers.get("Subject", "（無主旨）"),
-            "from": headers.get("From", ""),
-            "date": headers.get("Date", ""),
-            "body": body[:3000]  # 限制長度
+            "from_name": extract_sender_name(from_raw),
+            "from_email": extract_email_address(from_raw),
+            "date": headers.get("Date", "")[:16],
         })
-    
+
+    return emails
+
+
+async def get_emails_from_senders(email_list: list, max_results: int = 10) -> list:
+    """取得指定寄件人的來信列表（用於信件 高/中/低 指令）"""
+    if not email_list:
+        return []
+
+    service = get_gmail_service()
+    from_query = " OR ".join([f"from:{e}" for e in email_list])
+
+    results = service.users().messages().list(
+        userId="me",
+        q=f"({from_query}) in:inbox",
+        maxResults=max_results
+    ).execute()
+
+    messages = results.get("messages", [])
+    emails = []
+
+    for msg in messages:
+        detail = service.users().messages().get(
+            userId="me",
+            id=msg["id"],
+            format="metadata",
+            metadataHeaders=["Subject", "From", "Date"]
+        ).execute()
+
+        headers = {h["name"]: h["value"] for h in detail["payload"]["headers"]}
+        from_raw = headers.get("From", "")
+
+        emails.append({
+            "id": msg["id"],
+            "subject": headers.get("Subject", "（無主旨）"),
+            "from_name": extract_sender_name(from_raw),
+            "from_email": extract_email_address(from_raw),
+            "date": headers.get("Date", "")[:16],
+        })
+
     return emails
 
 
