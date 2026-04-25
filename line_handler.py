@@ -14,37 +14,42 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
-LINE_USER_ID = os.getenv("LINE_USER_ID")
+
+# 支援多個 User ID，用逗號分隔，例如：Uaaa,Ubbb
+_raw_ids = os.getenv("LINE_USER_ID", "")
+LINE_USER_IDS: list[str] = [uid.strip() for uid in _raw_ids.split(",") if uid.strip()]
 
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 
 async def push_message(text: str):
-    """主動推播訊息給海莉"""
+    """主動推播訊息（支援多位使用者）"""
     async with AsyncApiClient(configuration) as api_client:
         line_bot_api = AsyncMessagingApi(api_client)
-        await line_bot_api.push_message(
-            PushMessageRequest(
-                to=LINE_USER_ID,
-                messages=[TextMessage(text=text)]
+        for uid in LINE_USER_IDS:
+            await line_bot_api.push_message(
+                PushMessageRequest(
+                    to=uid,
+                    messages=[TextMessage(text=text)]
+                )
             )
-        )
 
 
 async def push_flex(flex: dict):
-    """主動推播 Flex Message 給海莉"""
+    """主動推播 Flex Message（支援多位使用者）"""
     async with AsyncApiClient(configuration) as api_client:
         line_bot_api = AsyncMessagingApi(api_client)
-        await line_bot_api.push_message(
-            PushMessageRequest(
-                to=LINE_USER_ID,
-                messages=[FlexMessage(
-                    alt_text=flex["altText"],
-                    contents=FlexContainer.from_dict(flex["contents"])
-                )]
+        for uid in LINE_USER_IDS:
+            await line_bot_api.push_message(
+                PushMessageRequest(
+                    to=uid,
+                    messages=[FlexMessage(
+                        alt_text=flex["altText"],
+                        contents=FlexContainer.from_dict(flex["contents"])
+                    )]
+                )
             )
-        )
 
 
 async def reply_message(reply_token: str, text: str):
