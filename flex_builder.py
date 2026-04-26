@@ -307,7 +307,10 @@ def _build_bubble(*, calendar_name, color, all_day_events, timed_events,
 
 
 def build_flex_carousel(calendar_list: list, event_list: list, month_label: str) -> dict:
-    """Carousel: one bubble per calendar."""
+    """Carousel: one bubble per calendar, max 5 events/bubble, max 8 bubbles."""
+    MAX_PER_CAL = 5
+    MAX_BUBBLES = 8
+
     calendar_map = {cal["id"]: cal for cal in calendar_list}
 
     groups: dict = {}
@@ -321,9 +324,11 @@ def build_flex_carousel(calendar_list: list, event_list: list, month_label: str)
 
     total_count = len(event_list)
     calendar_count = len(groups)
+    # 限制最多 MAX_BUBBLES 個日曆
+    limited_groups = list(groups.items())[:MAX_BUBBLES]
     bubbles = []
 
-    for page_index, (cid, events) in enumerate(groups.items()):
+    for page_index, (cid, events) in enumerate(limited_groups):
         cal = calendar_map.get(cid, {"id": cid, "summary": cid})
         color = get_calendar_color(cal)
         sorted_events = sorted(events, key=sort_key)
@@ -333,9 +338,9 @@ def build_flex_carousel(calendar_list: list, event_list: list, month_label: str)
         bubbles.append(_build_bubble(
             calendar_name=cal.get("summary", cid),
             color=color,
-            all_day_events=all_day,
-            timed_events=timed,
-            page_label=f"{page_index + 1} / {calendar_count}",
+            all_day_events=all_day[:MAX_PER_CAL],
+            timed_events=timed[:max(0, MAX_PER_CAL - len(all_day[:MAX_PER_CAL]))],
+            page_label=f"{page_index + 1} / {min(calendar_count, MAX_BUBBLES)}",
             month_label=month_label,
             total_count=total_count,
             calendar_count=calendar_count
