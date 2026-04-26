@@ -433,8 +433,8 @@ def _get_calendars_info(service) -> list:
 
 
 async def get_all_calendars_status() -> list:
-    """回傳所有日曆（含隱藏的），格式：[{name, visible, color}]"""
-    from googleapiclient.discovery import build
+    """回傳所有日曆（含隱藏的），格式：[{name, visible, color}]，強制清快取"""
+    _clear_calendar_cache()  # 每次查清單都強制刷新
     service = get_calendar_service()
     result = service.calendarList().list().execute()
     excluded = get_excluded_calendars()
