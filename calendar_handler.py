@@ -411,15 +411,19 @@ def _get_calendars_info(service) -> list:
     result = service.calendarList().list().execute()
     calendars = []
     for cal in result.get("items", []):
-        name = cal.get("summary", cal["id"])
-        if name in get_excluded_calendars():
+        raw_name = cal.get("summary", cal["id"])
+        # 若名稱是 email（summary == id），取 @ 前的用戶名作為顯示名稱
+        if raw_name == cal["id"] and "@" in raw_name:
+            display_name = raw_name.split("@")[0]
+        else:
+            display_name = raw_name
+        # 用原始名稱或顯示名稱都可以隱藏
+        excluded = get_excluded_calendars()
+        if raw_name in excluded or display_name in excluded:
             continue
-        # 若名稱是 email（summary == id），取 @ 前的用戶名顯示
-        if name == cal["id"] and "@" in name:
-            name = name.split("@")[0]
         calendars.append({
             "id": cal["id"],
-            "summary": name,
+            "summary": display_name,
             "colorId": cal.get("colorId"),
             "backgroundColor": cal.get("backgroundColor"),
         })
