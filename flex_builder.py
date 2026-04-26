@@ -323,8 +323,8 @@ def _build_bubble(*, calendar_name, color, all_day_events, timed_events,
     }
 
 
-def _build_week_event_row(event: dict, color: dict) -> dict:
-    """週視圖的行程列：彩色點 + 日期 + 時間badge + 標題"""
+def _build_week_event_row(event: dict, color: dict, cal_name: str = "") -> dict:
+    """週視圖的行程列：彩色點 + 日期 + 時間badge + 標題 + 日曆名稱"""
     date_label = _parse_date_range(event)
     title = event.get("summary", "（無標題）")
     all_day = _is_all_day(event)
@@ -336,6 +336,15 @@ def _build_week_event_row(event: dict, color: dict) -> dict:
         badge_text = "全天"
     else:
         badge_text = _parse_time(event["start"]["dateTime"])
+
+    # 標題 + 日曆名稱（小字）
+    title_contents = [
+        {"type": "text", "text": title, "size": "sm", "color": "#222222", "wrap": True}
+    ]
+    if cal_name:
+        title_contents.append({
+            "type": "text", "text": cal_name, "size": "xxs", "color": "#aaaaaa", "margin": "xs"
+        })
 
     return {
         "type": "box",
@@ -374,12 +383,10 @@ def _build_week_event_row(event: dict, color: dict) -> dict:
                 "contents": [{"type": "text", "text": badge_text, "size": "xxs", "color": color["dark"]}]
             },
             {
-                "type": "text",
-                "text": title,
-                "size": "sm",
-                "color": "#222222",
+                "type": "box",
+                "layout": "vertical",
                 "flex": 1,
-                "wrap": True
+                "contents": title_contents
             }
         ]
     }
@@ -403,7 +410,8 @@ def _build_week_bubble(week_label: str, date_range_label: str, events: list,
         cid = ev.get("calendarId", "primary")
         cal = calendar_map.get(cid, {"id": cid})
         color = get_calendar_color(cal)
-        body.append(_build_week_event_row(ev, color))
+        cal_name = cal.get("summary", "")
+        body.append(_build_week_event_row(ev, color, cal_name))
         if i < len(shown) - 1:
             body.append(SEPARATOR)
 

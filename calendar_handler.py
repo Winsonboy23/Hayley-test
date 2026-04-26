@@ -513,6 +513,13 @@ async def get_flex_range(days: int):
     return await _flex_fetch(time_min, time_max)
 
 
+async def get_flex_this_week():
+    now = datetime.now(TAIPEI_TZ)
+    monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    sunday_end = monday + timedelta(days=7)
+    return await _flex_fetch(monday, sunday_end)
+
+
 async def get_flex_this_month():
     now = datetime.now(TAIPEI_TZ)
     time_min = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)

@@ -25,7 +25,7 @@ from gmail_handler import (
 )
 from calendar_handler import (
     get_tomorrow_events, get_upcoming_events_today,
-    get_flex_today, get_flex_tomorrow, get_flex_range,
+    get_flex_today, get_flex_tomorrow, get_flex_range, get_flex_this_week,
     get_flex_this_month, get_flex_next_month,
     get_flex_by_month, search_flex_events,
     create_calendar_event,
@@ -513,7 +513,7 @@ async def handle_line_message(text: str, reply_token: str):
 
         # ── 本週行程 ──
         if t in ["本週行程", "這週行程", "這週", "本週"]:
-            cal_list, events = await get_flex_range(days=7)
+            cal_list, events = await get_flex_this_week()
             if not events:
                 await reply_flex(reply_token, build_flex_no_events("本週"))
             else:
