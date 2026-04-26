@@ -1,8 +1,11 @@
 from google import genai
 import os
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 MODEL = "gemini-2.5-pro"
+
+def _get_client():
+    """懶載入 Gemini client，避免啟動時因 env var 未載入而 crash"""
+    return genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 HALEY_STYLE_PROMPT = """
 你是海莉的 AI 助理，海莉是 PAUL 法式烘焙的 Branding & Marketing 主管。
@@ -28,7 +31,7 @@ async def summarize_email(email_content: str) -> str:
 
 {email_content}
 """
-    response = client.models.generate_content(model=MODEL, contents=prompt)
+    response = _get_client().models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
 
 
@@ -64,7 +67,7 @@ async def generate_reply_draft(
 例如對方用英文寫信 → 用英文回；對方用中文 → 用繁體中文回；對方混用 → 以主要語言為準。
 只輸出信件內文，不要加任何說明或前綴詞。
 """
-    response = client.models.generate_content(model=MODEL, contents=prompt)
+    response = _get_client().models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
 
 
@@ -91,7 +94,7 @@ async def classify_email_importance(subject: str, email_body: str) -> dict:
 - low + should_reply false：電子報、廣告、系統通知、無需回覆
 """
     try:
-        response = client.models.generate_content(model=MODEL, contents=prompt)
+        response = _get_client().models.generate_content(model=MODEL, contents=prompt)
         text = response.text.strip()
         if "```" in text:
             text = text.split("```")[1]
@@ -127,7 +130,7 @@ async def answer_work_question(question: str, context: str = "") -> str:
 
 請用繁體中文簡潔回答，語氣親切專業。
 """
-    response = client.models.generate_content(model=MODEL, contents=prompt)
+    response = _get_client().models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
 
 
@@ -157,5 +160,5 @@ async def summarize_schedule(events: list) -> str:
 
 只輸出整理好的內容，不要加任何說明。
 """
-    response = client.models.generate_content(model=MODEL, contents=prompt)
+    response = _get_client().models.generate_content(model=MODEL, contents=prompt)
     return response.text.strip()
