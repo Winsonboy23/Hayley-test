@@ -392,7 +392,8 @@ def _get_calendars_info(service) -> list:
         name = cal.get("summary", cal["id"])
         if name in EXCLUDED_CALENDARS:
             continue
-        if "@" in name:
+        # 只有當 summary 就是 email 本身（沒有設顯示名稱）才改名
+        if name == cal["id"] and "@" in name:
             name = "主要日曆"
         calendars.append({
             "id": cal["id"],
