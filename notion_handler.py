@@ -90,6 +90,8 @@ async def find_contacts_by_role(role: str) -> list:
 
 async def get_template_by_role(role: str) -> dict | None:
     """從 Notion 模板 DB 依角色查詢對應模板"""
+    if not TEMPLATES_DB_ID:
+        return None
     url = f"https://api.notion.com/v1/databases/{TEMPLATES_DB_ID}/query"
     payload = {
         "filter": {

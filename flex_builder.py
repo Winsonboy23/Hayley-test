@@ -250,8 +250,15 @@ def _build_header(title_text: str, subtitle: str, page_label: str = "") -> dict:
 
 def _build_bubble(*, calendar_name, color, all_day_events, timed_events,
                   page_label, month_label, total_count, calendar_count) -> dict:
+    MAX_EVENTS = 10
     body = []
     body.append(_build_calendar_header(calendar_name, color))
+
+    # 合併後限制總筆數
+    all_events = all_day_events + timed_events
+    hidden_count = max(0, len(all_events) - MAX_EVENTS)
+    all_day_events = all_day_events[:MAX_EVENTS]
+    timed_events = timed_events[:max(0, MAX_EVENTS - len(all_day_events))]
 
     if all_day_events:
         body.append(_build_sub_label("全天"))
@@ -266,6 +273,9 @@ def _build_bubble(*, calendar_name, color, all_day_events, timed_events,
             body.append(_build_event_row(ev, color))
             if i < len(timed_events) - 1:
                 body.append(SEPARATOR)
+
+    if hidden_count > 0:
+        body.append({"type": "text", "text": f"⋯ 還有 {hidden_count} 件未顯示", "size": "xxs", "color": "#aaaaaa", "margin": "sm"})
 
     footer_text = "滑動查看其他日曆 →" if calendar_count > 1 else f"{month_label} 全部行程"
 
