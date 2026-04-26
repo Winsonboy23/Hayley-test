@@ -1625,3 +1625,76 @@ def build_flex_draft_ready(sender_name: str, subject: str) -> dict:
             }
         }
     }
+
+
+def build_flex_calendar_list(calendars: list) -> dict:
+    """顯示所有行事曆狀態的 Flex bubble"""
+    rows = []
+    for i, cal in enumerate(calendars):
+        visible = cal["visible"]
+        color = cal["backgroundColor"]
+        status_text = "✅ 顯示中" if visible else "❌ 已隱藏"
+        status_color = "#34a853" if visible else "#ea4335"
+
+        row = {
+            "type": "box",
+            "layout": "horizontal",
+            "paddingTop": "10px",
+            "paddingBottom": "10px",
+            "paddingStart": "14px",
+            "paddingEnd": "14px",
+            "spacing": "sm",
+            "contents": [
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "width": "10px",
+                    "contents": [{"type": "filler"}, _dot(color, "10px", "5px"), {"type": "filler"}]
+                },
+                {
+                    "type": "text",
+                    "text": cal["name"],
+                    "size": "sm",
+                    "color": "#222222",
+                    "flex": 1,
+                    "weight": "bold"
+                },
+                {
+                    "type": "text",
+                    "text": status_text,
+                    "size": "xs",
+                    "color": status_color,
+                    "flex": 0,
+                    "align": "end"
+                }
+            ]
+        }
+        rows.append(row)
+        if i < len(calendars) - 1:
+            rows.append(SEPARATOR)
+
+    return {
+        "type": "flex",
+        "altText": "📅 行事曆清單",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": _build_header("📅 行事曆清單", f"共 {len(calendars)} 個日曆"),
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "paddingAll": "0px",
+                "spacing": "none",
+                "contents": rows
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#f5f5f5",
+                "paddingAll": "10px",
+                "contents": [{"type": "text",
+                              "text": "取消顯示 [名稱] 隱藏・顯示 [名稱] 恢復",
+                              "size": "xxs", "color": "#aaaaaa", "align": "center", "wrap": True}]
+            }
+        }
+    }

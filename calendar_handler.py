@@ -95,7 +95,29 @@ def _fetch_tasks_for_range(time_min: datetime, time_max: datetime) -> list:
         return []
 
 
-EXCLUDED_CALENDARS = {"台灣的節慶假日", "台灣節慶假日", "Holidays in Taiwan"}
+# 系統預設排除（節慶假日）
+_SYSTEM_EXCLUDED = {"台灣的節慶假日", "台灣節慶假日", "Holidays in Taiwan"}
+# 使用者自訂隱藏清單（存記憶體，重啟重置）
+_user_excluded: set = set()
+
+def get_excluded_calendars() -> set:
+    return _SYSTEM_EXCLUDED | _user_excluded
+
+def add_excluded_calendar(name: str):
+    _user_excluded.add(name)
+    _clear_calendar_cache()
+
+def remove_excluded_calendar(name: str):
+    _user_excluded.discard(name)
+    _clear_calendar_cache()
+
+def _clear_calendar_cache():
+    global _calendar_cache, _calendar_cache_time
+    _calendar_cache = []
+    _calendar_cache_time = None
+
+# 為了向後相容
+EXCLUDED_CALENDARS = _SYSTEM_EXCLUDED
 
 # 日曆清單快取（每小時更新一次）
 _calendar_cache: list = []
@@ -109,7 +131,7 @@ def get_all_calendars(service) -> dict:
     for cal in result.get("items", []):
         name = cal.get("summary", cal["id"])
         print(f"[CAL] 發現日曆：{name!r}", flush=True)
-        if name in EXCLUDED_CALENDARS:
+        if name in get_excluded_calendars():
             print(f"[CAL] 跳過（節慶）：{name}", flush=True)
             continue
         if "@" in name:
@@ -390,7 +412,7 @@ def _get_calendars_info(service) -> list:
     calendars = []
     for cal in result.get("items", []):
         name = cal.get("summary", cal["id"])
-        if name in EXCLUDED_CALENDARS:
+        if name in get_excluded_calendars():
             continue
         # 若名稱是 email（summary == id），取 @ 前的用戶名顯示
         if name == cal["id"] and "@" in name:
@@ -403,6 +425,30 @@ def _get_calendars_info(service) -> list:
         })
     _calendar_cache = calendars
     _calendar_cache_time = now
+    return calendars
+
+
+async def get_all_calendars_status() -> list:
+    """回傳所有日曆（含隱藏的），格式：[{name, visible, color}]"""
+    from googleapiclient.discovery import build
+    service = get_calendar_service()
+    result = service.calendarList().list().execute()
+    excluded = get_excluded_calendars()
+    calendars = []
+    for cal in result.get("items", []):
+        raw_name = cal.get("summary", cal["id"])
+        # 排除系統節慶
+        if raw_name in _SYSTEM_EXCLUDED:
+            continue
+        display_name = raw_name
+        if display_name == cal["id"] and "@" in display_name:
+            display_name = display_name.split("@")[0]
+        calendars.append({
+            "name": display_name,
+            "raw_name": raw_name,
+            "visible": raw_name not in _user_excluded and display_name not in _user_excluded,
+            "backgroundColor": cal.get("backgroundColor", "#1a73e8"),
+        })
     return calendars
 
 
