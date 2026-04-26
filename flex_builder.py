@@ -1102,8 +1102,8 @@ def build_flex_menu() -> dict:
         cmds=[
             ("📅", "今日行程", "今天的行程", None, True),
             ("📅", "明日行程", "明天的行程", None, True),
-            ("📅", "本週行程", "未來 7 天", None, True),
-            ("📅", "本月行程", "本月全部", None, True),
+            ("📅", "本週行程", "本週一到週日", None, True),
+            ("📅", "本月行程", "本月全部（依週顯示）", None, True),
             ("📅", "N月行程", "指定月份，如：五月行程", None, False),
             ("➕", "新增行程", "查看新增格式", None, True),
             ("🔍", "搜尋 關鍵字", "搜尋行程", None, False),
@@ -1136,12 +1136,34 @@ def build_flex_menu() -> dict:
         ]
     )
 
+    setting_bubble = _bubble(
+        header_color="#546e7a",
+        title="⚙️ 設定指令",
+        subtitle="",
+        cmds=[
+            ("📋", "行事曆清單", "查看所有日曆與顯示狀態", None, True),
+            ("❌", "取消顯示 [名稱]", "隱藏指定日曆", None, False),
+            ("✅", "顯示 [名稱]", "恢復顯示指定日曆", None, False),
+        ]
+    )
+    setting_bubble["footer"] = {
+        "type": "box",
+        "layout": "vertical",
+        "backgroundColor": "#f5f5f5",
+        "paddingAll": "10px",
+        "contents": [{
+            "type": "text",
+            "text": "設定重啟後會重置，重新設定即可",
+            "size": "xxs", "color": "#aaaaaa", "wrap": True, "align": "center"
+        }]
+    }
+
     return {
         "type": "flex",
         "altText": "📋 可用指令清單",
         "contents": {
             "type": "carousel",
-            "contents": [cal_bubble, email_bubble]
+            "contents": [cal_bubble, email_bubble, setting_bubble]
         }
     }
 
