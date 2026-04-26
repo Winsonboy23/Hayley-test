@@ -494,7 +494,7 @@ async def handle_line_message(text: str, reply_token: str):
         import re
 
         # ── 今日行程 ──
-        if t in ["今日行程", "今天行程", "今天", "行程"]:
+        if t in ["今日行程", "今天行程", "今天", "今日", "本日", "本日行程", "行程"]:
             cal_list, events = await get_flex_today()
             if not events:
                 await reply_flex(reply_token, build_flex_no_events("今日"))
