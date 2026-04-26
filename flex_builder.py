@@ -35,6 +35,23 @@ def _parse_date(start: dict) -> str:
     return date_str
 
 
+def _parse_date_range(event: dict) -> str:
+    """Return MM/DD or MM/DD～MM/DD for multi-day all-day events."""
+    from datetime import date as date_cls, timedelta
+    start_str = _parse_date(event.get("start", {}))
+    if _is_all_day(event):
+        end_date = event.get("end", {}).get("date", "")
+        if end_date:
+            parts = end_date.split("-")
+            if len(parts) == 3:
+                # Google Calendar end date is exclusive, subtract 1 day
+                end_dt = date_cls(int(parts[0]), int(parts[1]), int(parts[2])) - timedelta(days=1)
+                end_str = f"{end_dt.month:02d}/{end_dt.day:02d}"
+                if end_str != start_str:
+                    return f"{start_str}～{end_str}"
+    return start_str
+
+
 def _parse_time(date_time_str: str) -> str:
     return date_time_str[11:16]
 
@@ -90,7 +107,7 @@ def _build_calendar_header(name: str, color: dict) -> dict:
 
 def _build_event_row(event: dict, color: dict) -> dict:
     """Row with date + optional time badge + title (for carousel)."""
-    date_label = _parse_date(event["start"])
+    date_label = _parse_date_range(event)
     title = event.get("summary", "（無標題）")
     all_day = _is_all_day(event)
     is_task = event.get("is_task", False)
@@ -306,44 +323,174 @@ def _build_bubble(*, calendar_name, color, all_day_events, timed_events,
     }
 
 
-def build_flex_carousel(calendar_list: list, event_list: list, month_label: str) -> dict:
-    """Carousel: one bubble per calendar, max 5 events/bubble, max 8 bubbles."""
-    MAX_PER_CAL = 5
-    MAX_BUBBLES = 8
+def _build_week_event_row(event: dict, color: dict) -> dict:
+    """週視圖的行程列：彩色點 + 日期 + 時間badge + 標題"""
+    date_label = _parse_date_range(event)
+    title = event.get("summary", "（無標題）")
+    all_day = _is_all_day(event)
+    is_task = event.get("is_task", False)
 
-    calendar_map = {cal["id"]: cal for cal in calendar_list}
+    if is_task:
+        badge_text = "☑"
+    elif all_day:
+        badge_text = "全天"
+    else:
+        badge_text = _parse_time(event["start"]["dateTime"])
 
-    groups: dict = {}
-    for event in event_list:
-        cid = event.get("calendarId", "primary")
-        groups.setdefault(cid, []).append(event)
+    return {
+        "type": "box",
+        "layout": "horizontal",
+        "paddingTop": "8px",
+        "paddingBottom": "8px",
+        "paddingStart": "14px",
+        "paddingEnd": "14px",
+        "spacing": "sm",
+        "contents": [
+            {
+                "type": "box",
+                "layout": "vertical",
+                "width": "8px",
+                "contents": [{"type": "filler"}, _dot(color["main"]), {"type": "filler"}]
+            },
+            {
+                "type": "text",
+                "text": date_label,
+                "size": "xs",
+                "color": "#555555",
+                "weight": "bold",
+                "flex": 0,
+                "offsetTop": "1px"
+            },
+            {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": color["light"],
+                "cornerRadius": "4px",
+                "paddingTop": "1px",
+                "paddingBottom": "1px",
+                "paddingStart": "5px",
+                "paddingEnd": "5px",
+                "flex": 0,
+                "contents": [{"type": "text", "text": badge_text, "size": "xxs", "color": color["dark"]}]
+            },
+            {
+                "type": "text",
+                "text": title,
+                "size": "sm",
+                "color": "#222222",
+                "flex": 1,
+                "wrap": True
+            }
+        ]
+    }
+
+
+def _build_week_bubble(week_label: str, date_range_label: str, events: list,
+                       calendar_map: dict, page_label: str, total_count: int) -> dict:
+    """一週的行程 bubble，最多顯示 10 筆"""
+    MAX_PER_WEEK = 10
 
     def sort_key(e):
         s = e.get("start", {})
         return s.get("date") or s.get("dateTime", "")
 
-    total_count = len(event_list)
-    calendar_count = len(groups)
-    # 限制最多 MAX_BUBBLES 個日曆
-    limited_groups = list(groups.items())[:MAX_BUBBLES]
-    bubbles = []
+    sorted_events = sorted(events, key=sort_key)
+    hidden = max(0, len(sorted_events) - MAX_PER_WEEK)
+    shown = sorted_events[:MAX_PER_WEEK]
 
-    for page_index, (cid, events) in enumerate(limited_groups):
-        cal = calendar_map.get(cid, {"id": cid, "summary": cid})
+    body = []
+    for i, ev in enumerate(shown):
+        cid = ev.get("calendarId", "primary")
+        cal = calendar_map.get(cid, {"id": cid})
         color = get_calendar_color(cal)
-        sorted_events = sorted(events, key=sort_key)
-        all_day = [e for e in sorted_events if _is_all_day(e)]
-        timed = [e for e in sorted_events if not _is_all_day(e)]
+        body.append(_build_week_event_row(ev, color))
+        if i < len(shown) - 1:
+            body.append(SEPARATOR)
 
-        bubbles.append(_build_bubble(
-            calendar_name=cal.get("summary", cid),
-            color=color,
-            all_day_events=all_day[:MAX_PER_CAL],
-            timed_events=timed[:max(0, MAX_PER_CAL - len(all_day[:MAX_PER_CAL]))],
-            page_label=f"{page_index + 1} / {min(calendar_count, MAX_BUBBLES)}",
-            month_label=month_label,
-            total_count=total_count,
-            calendar_count=calendar_count
+    if hidden > 0:
+        body.append({
+            "type": "text",
+            "text": f"⋯ 還有 {hidden} 件",
+            "size": "xxs",
+            "color": "#aaaaaa",
+            "margin": "sm",
+            "paddingStart": "14px"
+        })
+
+    if not body:
+        body.append({
+            "type": "text",
+            "text": "本週無行程",
+            "size": "sm",
+            "color": "#aaaaaa",
+            "align": "center",
+            "paddingAll": "20px"
+        })
+
+    return {
+        "type": "bubble",
+        "size": "kilo",
+        "header": _build_header(f"📅 {week_label}", date_range_label, page_label),
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "0px",
+            "spacing": "none",
+            "contents": body
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#f5f5f5",
+            "paddingAll": "8px",
+            "contents": [{"type": "text", "text": f"共 {total_count} 件・滑動查看其他週 →",
+                          "size": "xxs", "color": "#aaaaaa", "align": "center"}]
+        }
+    }
+
+
+def build_flex_carousel(calendar_list: list, event_list: list, month_label: str) -> dict:
+    """月份行程：按週分組，每週一張 bubble"""
+    from datetime import date as date_cls, timedelta
+
+    calendar_map = {cal["id"]: cal for cal in calendar_list}
+    total_count = len(event_list)
+
+    def sort_key(e):
+        s = e.get("start", {})
+        return s.get("date") or s.get("dateTime", "")
+
+    # 按週分組（以週一為起點）
+    week_groups: dict = {}
+    for event in sorted(event_list, key=sort_key):
+        date_str = sort_key(event)[:10]
+        try:
+            parts = date_str.split("-")
+            d = date_cls(int(parts[0]), int(parts[1]), int(parts[2]))
+            week_start = d - timedelta(days=d.weekday())  # 該週週一
+            week_groups.setdefault(week_start, []).append(event)
+        except Exception:
+            week_groups.setdefault(date_cls.today(), []).append(event)
+
+    bubbles = []
+    sorted_weeks = sorted(week_groups.keys())
+    total_weeks = len(sorted_weeks)
+
+    week_names = ["第一週", "第二週", "第三週", "第四週", "第五週", "第六週"]
+
+    for i, week_start in enumerate(sorted_weeks):
+        week_end = week_start + timedelta(days=6)
+        date_range = f"{week_start.month}/{week_start.day} - {week_end.month}/{week_end.day}"
+        week_name = week_names[i] if i < len(week_names) else f"第{i+1}週"
+        events = week_groups[week_start]
+
+        bubbles.append(_build_week_bubble(
+            week_label=f"{month_label}{week_name}",
+            date_range_label=date_range,
+            events=events,
+            calendar_map=calendar_map,
+            page_label=f"{i + 1} / {total_weeks}",
+            total_count=total_count
         ))
 
     return {
