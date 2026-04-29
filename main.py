@@ -15,7 +15,6 @@ load_dotenv()
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 
 from gmail_handler import (
     get_email_by_id, create_draft,
@@ -24,7 +23,7 @@ from gmail_handler import (
     get_recent_emails, get_emails_from_senders,
 )
 from calendar_handler import (
-    get_tomorrow_events, get_upcoming_events_today,
+    get_tomorrow_events,
     get_flex_today, get_flex_tomorrow, get_flex_range, get_flex_this_week,
     get_flex_this_month, get_flex_next_month,
     get_flex_by_month, search_flex_events,
@@ -37,7 +36,7 @@ from flex_builder import (
     build_flex_email_notification,
     build_flex_no_events, build_flex_email_summary,
     build_flex_contact, build_flex_tasks, build_flex_menu,
-    build_flex_event_reminder, build_flex_draft_ready,
+    build_flex_draft_ready,
     build_flex_email_search, build_flex_drafts_list,
     build_flex_unread_emails, build_flex_email_carousel,
     build_flex_add_event_help, build_flex_event_created,
@@ -88,12 +87,6 @@ async def lifespan(app: FastAPI):
         CronTrigger(day="*/6", hour=9, minute=0, timezone="Asia/Taipei"),
         id="gmail_watch_renew"
     )
-    # 每分鐘檢查是否有活動快開始（1小時前提醒）
-    scheduler.add_job(
-        check_upcoming_events,
-        IntervalTrigger(minutes=1),
-        id="event_reminder"
-    )
     scheduler.start()
     yield
     scheduler.shutdown()
@@ -102,7 +95,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Haley AI Assistant", lifespan=lifespan)
 
 # 已提醒過的活動（避免重複通知）
-reminded_events = set()
 
 # Gmail 通知去重快取（避免同一封信重複推播）
 PROCESSED_HISTORY_TTL_SECONDS = 600
@@ -687,26 +679,6 @@ async def daily_schedule_summary():
 
 
 # ── 排程：每分鐘檢查活動 1 小時前提醒 ──
-async def check_upcoming_events():
-    """每分鐘檢查是否有活動需要提醒"""
-    try:
-        events = await get_upcoming_events_today()
-        
-        for event in events:
-            minutes = event["minutes_until"]
-            event_key = f"{event['summary']}_{event['time']}"
-            
-            # 55–65 分鐘內且尚未提醒過
-            if 55 <= minutes <= 65 and event_key not in reminded_events:
-                reminded_events.add(event_key)
-                await push_flex(build_flex_event_reminder(
-                    event_name=event["summary"],
-                    event_time=event["time"],
-                    location=event.get("location", "")
-                ))
-    except Exception as e:
-        print(f"check_upcoming_events error: {e}")
-
 
 # ── 手動觸發測試用 ──
 async def handle_postback(data: str, reply_token: str):
