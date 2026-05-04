@@ -675,8 +675,13 @@ async def handle_line_message(text: str, reply_token: str):
             await reply_flex(reply_token, build_flex_email_carousel(emails, "近期信件"))
             return
 
-        # ── 指令清單 / 不認識的輸入 ──
-        await reply_flex(reply_token, build_flex_menu())
+        # ── 指令清單 ──
+        if t in ["指令", "選單", "menu"]:
+            await reply_flex(reply_token, build_flex_menu())
+            return
+
+        # ── 不認識的輸入 ──
+        await reply_message(reply_token, "輸入『指令』查看可用功能")
 
     except Exception as e:
         print(f"handle_line_message error: {e}")
