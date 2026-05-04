@@ -168,44 +168,40 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
 def _parse_add_event(text: str) -> dict | None:
     """
     解析「新增行程」指令，回傳 dict 或 None（格式錯誤）
-    格式：新增行程 日期[~結束日] 時間|全天 標題 [@地點]
+    格式：新增行程 日期[~結束日] 時間[~結束時間]|全天 標題 [@地點]
     支援：
-      日期 - MM/DD、今天/明天/後天、下週X、X月Y日/號（中文或數字）
-      時間 - HH:MM、全天、[上午|下午|晚上|早上]X點[半]（中文數字）
-      範圍 - 半形 ~ 或全形 ～ 分隔
+      日期 - MM/DD、今天/明天/後天、週X/下週X、X月Y日/號（中文或數字）
+      時間 - HH:MM、HHMM、全天、[上午|下午|晚上|早上]X點[半|一刻|三刻|X分]（中文數字）
+      範圍 - 日期與時間皆可用 ~ 或 ～ 分隔
     """
     import re
     from datetime import date as date_cls
 
     t = text.strip()
-    # 正規化全形波浪號為半形
     t = t.replace("～", "~")
 
-    # 移除指令前綴
-    for prefix in ["新增行程", "新增"]:
+    for prefix in ["新增行程", "新增", "+"]:
         if t.startswith(prefix):
             t = t[len(prefix):].strip()
             break
     else:
         return None
 
-    # 抽取地點（@xxx）
     location = ""
     loc_match = re.search(r"@(.+)$", t)
     if loc_match:
         location = loc_match.group(1).strip()
         t = t[:loc_match.start()].strip()
 
-    # 切 token
     tokens = t.split()
     if len(tokens) < 3:
         return None
 
     today = datetime.now(TAIPEI_TZ).date()
 
-    # ── 中文數字轉整數 ──
     _CN_DIG = {"〇":0,"零":0,"一":1,"二":2,"兩":2,"三":3,"四":4,"五":5,
                "六":6,"七":7,"八":8,"九":9}
+
     def _cn_to_int(s: str) -> int | None:
         if not s:
             return None
@@ -225,20 +221,27 @@ def _parse_add_event(text: str) -> dict | None:
 
     def _resolve_date(s: str):
         """將各種日期格式轉成 date 物件"""
-        weekday_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6}
+        weekday_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
         if s == "今天":
             return today
         if s == "明天":
             return today + timedelta(days=1)
         if s == "後天":
             return today + timedelta(days=2)
-        m = re.match(r"下週([一二三四五六日])", s)
+        # 週X（本週，已過則仍用本週）
+        m = re.match(r"^週([一二三四五六日天])$", s)
         if m:
             target_wd = weekday_map[m.group(1)]
-            days_ahead = (target_wd - today.weekday() + 7) % 7
-            days_ahead = days_ahead if days_ahead else 7
-            return today + timedelta(days=days_ahead + 7 - 7)
-        # MM/DD（數字斜線格式）
+            # 本週一 = today - today.weekday()
+            monday = today - timedelta(days=today.weekday())
+            return monday + timedelta(days=target_wd)
+        # 下週X
+        m = re.match(r"下週([一二三四五六日天])", s)
+        if m:
+            target_wd = weekday_map[m.group(1)]
+            monday = today - timedelta(days=today.weekday()) + timedelta(weeks=1)
+            return monday + timedelta(days=target_wd)
+        # MM/DD
         m = re.match(r"^(\d{1,2})/(\d{1,2})$", s)
         if m:
             month, day = int(m.group(1)), int(m.group(2))
@@ -250,7 +253,7 @@ def _parse_add_event(text: str) -> dict | None:
                 return d
             except ValueError:
                 return None
-        # X月Y日 / X月Y號（中文或數字月日）
+        # X月Y日 / X月Y號
         m = re.match(r"^([零〇一二三四五六七八九十\d]{1,4})月([零〇一二兩三四五六七八九十\d]{1,4})[日號]$", s)
         if m:
             month = _cn_to_int(m.group(1))
@@ -267,33 +270,46 @@ def _parse_add_event(text: str) -> dict | None:
         return None
 
     def _resolve_time(s: str) -> str | None:
-        """將時間字串轉成 HH:MM，無法解析回傳 None"""
-        # 數字格式 HH:MM
+        """將時間字串轉成 HH:MM"""
+        # HH:MM
         if re.match(r"^\d{1,2}:\d{2}$", s):
             return s.zfill(5)
-        # 中文時間：[前綴]X點[半]
+        # HHMM（省略冒號，3~4 位數字）
+        m = re.match(r"^(\d{1,2})(\d{2})$", s)
+        if m and len(s) >= 3:
+            h, mi = int(m.group(1)), int(m.group(2))
+            if 0 <= h <= 23 and 0 <= mi <= 59:
+                return f"{h:02d}:{mi:02d}"
+        # 中文時間：[前綴]X點[半|一刻|三刻|X分|XX分]
         m = re.match(
             r"^(上午|下午|晚上|早上|中午)?"
-            r"([零〇一二兩三四五六七八九十\d]{1,3})點([半]?)$",
+            r"([零〇一二兩三四五六七八九十\d]{1,3})點"
+            r"(半|一刻|三刻|([零〇一二兩三四五六七八九十\d]{1,2})分)?$",
             s
         )
         if m:
             prefix = m.group(1) or ""
-            hour_cn = m.group(2)
-            half = m.group(3)
-            hour = _cn_to_int(hour_cn)
+            hour = _cn_to_int(m.group(2))
             if hour is None:
                 return None
-            minute = 30 if half == "半" else 0
-            # 無前綴：1-6 → 下午（+12），7-12 → 上午
+            suffix = m.group(3) or ""
+            if suffix == "半":
+                minute = 30
+            elif suffix == "一刻":
+                minute = 15
+            elif suffix == "三刻":
+                minute = 45
+            elif suffix.endswith("分"):
+                minute = _cn_to_int(m.group(4)) or 0
+            else:
+                minute = 0
             if prefix in ("下午", "晚上", "中午"):
                 if hour < 12:
                     hour += 12
             elif prefix in ("上午", "早上"):
                 if hour == 12:
-                    hour = 0  # 上午12點 = 00:00（少見但合理）
+                    hour = 0
             else:
-                # 無前綴推斷：1–6 → PM，7–12 → AM
                 if 1 <= hour <= 6:
                     hour += 12
             return f"{hour:02d}:{minute:02d}"
@@ -312,18 +328,25 @@ def _parse_add_event(text: str) -> dict | None:
     if not start_date or not end_date:
         return None
 
-    # 第二個 token：時間或「全天」
+    # 第二個 token：時間（可含 ~）或「全天」
     time_token = tokens[1]
+    end_time = None
     if time_token == "全天":
         start_time = None
         time_display = "全天"
+    elif "~" in time_token:
+        parts = time_token.split("~", 1)
+        start_time = _resolve_time(parts[0])
+        end_time = _resolve_time(parts[1])
+        if start_time is None:
+            return None
+        time_display = f"{start_time}～{end_time}" if end_time else start_time
     else:
         start_time = _resolve_time(time_token)
         if start_time is None:
             return None
         time_display = start_time
 
-    # 剩餘：標題
     title = " ".join(tokens[2:]).strip()
     if not title:
         return None
@@ -333,6 +356,7 @@ def _parse_add_event(text: str) -> dict | None:
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
         "start_time": start_time,
+        "end_time": end_time,
         "time_display": time_display,
         "location": location,
         "date_display": (
@@ -569,7 +593,7 @@ async def handle_line_message(text: str, reply_token: str):
             return
 
         # ── 新增行程 ──
-        if t.startswith("新增行程") or t.startswith("新增"):
+        if t.startswith("新增行程") or t.startswith("新增") or t.startswith("+"):
             parsed = _parse_add_event(t)
             if not parsed:
                 await reply_flex(reply_token, build_flex_add_event_help("格式有誤，請參考以下範例"))
@@ -580,6 +604,7 @@ async def handle_line_message(text: str, reply_token: str):
                     start_date=parsed["start_date"],
                     end_date=parsed["end_date"],
                     start_time=parsed["start_time"],
+                    end_time=parsed.get("end_time"),
                     location=parsed["location"]
                 )
                 await reply_flex(reply_token, build_flex_event_created(

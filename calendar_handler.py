@@ -187,6 +187,7 @@ async def create_calendar_event(
     start_date: str,
     end_date: str,
     start_time: str = None,
+    end_time: str = None,
     location: str = ""
 ) -> str:
     """建立 Google Calendar 行程，回傳建立結果訊息"""
@@ -196,9 +197,13 @@ async def create_calendar_event(
         # 有時間：timed event
         start_dt = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
         start_dt = start_dt.replace(tzinfo=TAIPEI_TZ)
-        # 結束時間預設 +1 小時（若多天則結束日當天同時間）
-        end_dt = datetime.strptime(f"{end_date} {start_time}", "%Y-%m-%d %H:%M")
-        end_dt = end_dt.replace(tzinfo=TAIPEI_TZ) + timedelta(hours=1)
+        if end_time:
+            end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
+            end_dt = end_dt.replace(tzinfo=TAIPEI_TZ)
+        else:
+            # 未指定結束時間，預設 +1 小時
+            end_dt = datetime.strptime(f"{end_date} {start_time}", "%Y-%m-%d %H:%M")
+            end_dt = end_dt.replace(tzinfo=TAIPEI_TZ) + timedelta(hours=1)
         event_body = {
             "summary": title,
             "location": location,
