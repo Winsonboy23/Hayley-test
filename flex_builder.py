@@ -548,8 +548,8 @@ def build_flex_single(calendar_list: list, event_list: list, label: str) -> dict
     }
 
 
-def build_flex_evening_push(calendar_list: list, event_list: list, unread_count: int) -> dict:
-    """晚上推播：明日行程（單張）+ 未讀信件數"""
+def build_flex_evening_push(calendar_list: list, event_list: list) -> dict:
+    """晚上推播：明日行程（單張）"""
     from datetime import datetime, timezone, timedelta
     TAIPEI_TZ = timezone(timedelta(hours=8))
     now = datetime.now(TAIPEI_TZ)
@@ -580,15 +580,6 @@ def build_flex_evening_push(calendar_list: list, event_list: list, unread_count:
                     {"type": "text", "text": str(total), "size": "xl", "weight": "bold",
                      "color": "#1a73e8", "align": "center"},
                     {"type": "text", "text": "件行程", "size": "xxs", "color": "#555555", "align": "center"}
-                ]
-            },
-            {
-                "type": "box", "layout": "vertical", "flex": 1,
-                "backgroundColor": "#fce4ec", "cornerRadius": "8px", "paddingAll": "10px",
-                "contents": [
-                    {"type": "text", "text": str(unread_count), "size": "xl", "weight": "bold",
-                     "color": "#d50000", "align": "center"},
-                    {"type": "text", "text": "封未讀", "size": "xxs", "color": "#555555", "align": "center"}
                 ]
             }
         ]
@@ -636,13 +627,13 @@ def build_flex_evening_push(calendar_list: list, event_list: list, unread_count:
 
     return {
         "type": "flex",
-        "altText": f"📅 明日行程 {total} 件・未讀 {unread_count} 封",
+        "altText": f"📅 明日行程 {total} 件",
         "contents": bubble
     }
 
 
-def build_flex_morning_summary(calendar_list: list, event_list: list, unread_count: int) -> dict:
-    """早晨推播：今日行程件數 + 未讀信件數 + 事件列表"""
+def build_flex_morning_summary(calendar_list: list, event_list: list) -> dict:
+    """早晨推播：今日行程件數 + 事件列表"""
     from datetime import datetime, timezone, timedelta
     TAIPEI_TZ = timezone(timedelta(hours=8))
     now = datetime.now(TAIPEI_TZ)
@@ -672,15 +663,6 @@ def build_flex_morning_summary(calendar_list: list, event_list: list, unread_cou
                     {"type": "text", "text": str(total), "size": "xl", "weight": "bold",
                      "color": "#1a73e8", "align": "center"},
                     {"type": "text", "text": "件行程", "size": "xxs", "color": "#555555", "align": "center"}
-                ]
-            },
-            {
-                "type": "box", "layout": "vertical", "flex": 1,
-                "backgroundColor": "#fce4ec", "cornerRadius": "8px", "paddingAll": "10px",
-                "contents": [
-                    {"type": "text", "text": str(unread_count), "size": "xl", "weight": "bold",
-                     "color": "#d50000", "align": "center"},
-                    {"type": "text", "text": "封未讀", "size": "xxs", "color": "#555555", "align": "center"}
                 ]
             }
         ]
@@ -728,7 +710,7 @@ def build_flex_morning_summary(calendar_list: list, event_list: list, unread_cou
 
     return {
         "type": "flex",
-        "altText": f"☀️ 早安！今天 {total} 件行程・未讀 {unread_count} 封",
+        "altText": f"☀️ 早安！今天 {total} 件行程",
         "contents": bubble
     }
 
@@ -1163,7 +1145,7 @@ def build_flex_menu() -> dict:
         "altText": "📋 可用指令清單",
         "contents": {
             "type": "carousel",
-            "contents": [cal_bubble, email_bubble, setting_bubble]
+            "contents": [cal_bubble, email_bubble]
         }
     }
 

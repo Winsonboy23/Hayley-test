@@ -18,7 +18,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from gmail_handler import (
     get_email_by_id, create_draft,
-    count_today_emails, count_drafts, count_unread_emails,
+    count_today_emails, count_drafts,
     setup_gmail_watch, search_emails, get_drafts_list, get_unread_emails,
     get_recent_emails, get_emails_from_senders,
 )
@@ -638,7 +638,7 @@ async def handle_line_message(text: str, reply_token: str):
             email_list = await get_contact_emails_by_importance(imp)
             emails = await get_emails_from_senders(email_list, max_results=10)
             imp_label = {"高": "🔴 高重要度", "中": "🟡 中重要度", "低": "⚪ 低重要度"}.get(imp, imp)
-            await reply_flex(reply_token, build_flex_email_carousel(emails, f"{imp_label}聯絡人來信"))
+            await push_flex(build_flex_email_carousel(emails, f"{imp_label}聯絡人來信"))
             return
 
         # ── 未讀信件列表 ──
@@ -685,15 +685,17 @@ async def handle_line_message(text: str, reply_token: str):
 
     except Exception as e:
         print(f"handle_line_message error: {e}")
-        await reply_message(reply_token, "⚠️ 處理時發生錯誤，請稍後再試。")
+        try:
+            await reply_message(reply_token, "⚠️ 處理時發生錯誤，請稍後再試。")
+        except Exception:
+            await push_message("⚠️ 處理時發生錯誤，請稍後再試。")
 
 
 # ── 排程：每天 08:00 今日摘要 ──
 async def morning_summary():
     try:
         cal_list, events = await get_flex_today()
-        unread = await count_unread_emails()
-        await push_flex(build_flex_morning_summary(cal_list, events, unread))
+        await push_flex(build_flex_morning_summary(cal_list, events))
     except Exception as e:
         print(f"morning_summary error: {e}")
 
@@ -702,8 +704,7 @@ async def morning_summary():
 async def daily_schedule_summary():
     try:
         cal_list, events = await get_flex_tomorrow()
-        unread = await count_unread_emails()
-        await push_flex(build_flex_evening_push(cal_list, events, unread))
+        await push_flex(build_flex_evening_push(cal_list, events))
     except Exception as e:
         print(f"daily_schedule_summary error: {e}")
 
