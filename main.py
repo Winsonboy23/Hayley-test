@@ -709,8 +709,6 @@ async def daily_schedule_summary():
         print(f"daily_schedule_summary error: {e}")
 
 
-# ── 排程：每分鐘檢查活動 1 小時前提醒 ──
-
 # ── 手動觸發測試用 ──
 async def handle_postback(data: str, reply_token: str):
     """處理 LINE 按鈕點擊（postback）"""

@@ -1127,59 +1127,6 @@ def build_flex_menu() -> dict:
     }
 
 
-# ── 活動提醒 ──────────────────────────────────────────────────────────
-def build_flex_event_reminder(event_name: str, event_time: str, location: str = "") -> dict:
-    """活動 1 小時前提醒卡片"""
-    body_contents = [
-        {"type": "text", "text": event_name, "size": "md", "weight": "bold",
-         "color": "#222222", "wrap": True},
-        {
-            "type": "box", "layout": "horizontal",
-            "margin": "md", "spacing": "sm",
-            "contents": [
-                {"type": "text", "text": "🕐", "size": "sm", "flex": 0},
-                {"type": "text", "text": event_time, "size": "sm", "color": "#555555"}
-            ]
-        }
-    ]
-    if location:
-        body_contents.append({
-            "type": "box", "layout": "horizontal",
-            "margin": "sm", "spacing": "sm",
-            "contents": [
-                {"type": "text", "text": "📍", "size": "sm", "flex": 0},
-                {"type": "text", "text": location, "size": "sm",
-                 "color": "#555555", "flex": 1, "wrap": True}
-            ]
-        })
-
-    return {
-        "type": "flex",
-        "altText": f"⏰ 1小時後：{event_name}",
-        "contents": {
-            "type": "bubble",
-            "size": "kilo",
-            "header": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#f57c00",
-                "paddingAll": "14px",
-                "contents": [
-                    {"type": "text", "text": "⏰ 活動提醒",
-                     "color": "#ffffff", "size": "md", "weight": "bold"},
-                    {"type": "text", "text": "1 小時後即將開始",
-                     "color": "#ffe0b2", "size": "xxs", "margin": "xs"}
-                ]
-            },
-            "body": {
-                "type": "box", "layout": "vertical",
-                "paddingAll": "16px", "spacing": "none",
-                "contents": body_contents
-            }
-        }
-    }
-
-
 # ── 信件列表（共用 2 張卡片輪播）────────────────────────────────────
 def build_flex_email_carousel(emails: list, title: str) -> dict:
     """信件列表輪播：最多 10 封，分 2 張卡片，每張 5 封"""
