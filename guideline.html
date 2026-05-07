@@ -467,6 +467,14 @@
         <span class="cmd-tag">信件草稿</span>
         <div class="cmd-info">列出 Gmail 草稿夾所有待發信件（主旨 ＋ 收件人）</div>
       </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">信件 高</span>
+        <div class="cmd-info">列出 Notion 中標記為<strong>高重要度</strong>聯絡人的近期來信</div>
+      </div>
+      <div class="cmd-row">
+        <span class="cmd-tag">信件 中</span>
+        <div class="cmd-info">列出 Notion 中標記為<strong>中重要度</strong>聯絡人的近期來信</div>
+      </div>
       <div class="cmd-row" style="opacity:.6;">
         <span class="cmd-tag" style="background:#f5f5f5;color:#999;">搜尋信件 關鍵字</span>
         <div class="cmd-info">搜尋 Gmail 信件，例如「<strong>搜尋信件 報價</strong>」（需手動輸入）</div>
@@ -557,9 +565,9 @@
       </div>
       <div class="mini-arrow">→</div>
       <div class="mini-step">
-        <div class="mini-bubble orange">🤖</div>
-        <strong>AI 分流</strong>
-        <p>已知 or 陌生<br>寄件人？</p>
+        <div class="mini-bubble orange">🚦</div>
+        <strong>重要度分流</strong>
+        <p>高 / 中 / 空白<br>三種處理</p>
       </div>
     </div>
 
@@ -567,68 +575,61 @@
     <div class="branch-paths">
 
       <div class="branch-path known">
-        <h4>✅ 已知聯絡人（在 Notion 名單中）</h4>
+        <h4>🔴 高重要度：自動建立草稿</h4>
         <div class="step-item">
           <span class="step-num">1</span>
-          <span>檢查是否為<strong>黑名單</strong> → 勾選者直接略過，完全不處理</span>
+          <span>寄件人 Email 必須存在於 Notion 聯絡人資料庫</span>
         </div>
         <div class="step-item">
           <span class="step-num">2</span>
-          根據對方職稱，找對應信件模板
-        </div>
-        <div class="step-item">
-          <span class="step-num">2</span>
-          AI 自動生成回覆草稿
+          聯絡人「重要度」設為<strong>高</strong>
         </div>
         <div class="step-item">
           <span class="step-num">3</span>
-          草稿存入 Gmail 草稿夾
+          根據聯絡人角色找對應信件模板
         </div>
         <div class="step-item">
           <span class="step-num">4</span>
-          LINE 推播藍色通知卡片<br>
-          <span style="color:#2e7d32;font-size:12px;margin-top:2px;display:block;">✉️ 草稿已備妥，請至 Gmail 確認</span>
+          AI 依海莉語氣與模板內容產生草稿
         </div>
         <div class="step-item">
           <span class="step-num">5</span>
-          草稿語言自動跟隨來信語言
+          草稿存入 Gmail，同一封信串中，不自動寄出
+        </div>
+        <div class="step-item">
+          <span class="step-num">6</span>
+          LINE 通知：草稿已備妥，請至 Gmail 確認
         </div>
       </div>
 
       <div class="branch-path unknown">
-        <h4>⚠️ 陌生寄件人（不在 Notion 名單）</h4>
+        <h4>🟡 中重要度：先通知，再手動起草</h4>
         <div class="step-item">
           <span class="step-num">1</span>
-          規則過濾：電子報、廣告、系統通知 → 直接略過，不通知、不消耗 AI
+          寄件人 Email 必須存在於 Notion 聯絡人資料庫
         </div>
         <div class="step-item">
           <span class="step-num">2</span>
-          AI 判斷信件重要程度
-        </div>
-        <div class="importance-row">
-          <span class="imp-badge imp-high">🔴 高</span>
-          <span class="imp-badge imp-mid">🟡 中</span>
-          <span class="imp-badge imp-low">⚪ 低</span>
+          聯絡人「重要度」設為<strong>中</strong>
         </div>
         <div class="step-item" style="margin-top:10px;">
-          <span class="step-num">2</span>
-          LINE 推播橘色通知卡片（含重要度 + AI 判斷原因）
-        </div>
-        <div class="step-item">
           <span class="step-num">3</span>
-          若需要回覆，卡片顯示按鈕：
-          <span style="display:block;background:#1a73e8;color:white;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;margin-top:4px;width:fit-content;">✍️ 幫我起草回信</span>
+          LINE 推播新信通知，顯示起草按鈕
         </div>
         <div class="step-item">
           <span class="step-num">4</span>
-          按下按鈕後，AI 生成草稿並存入 Gmail
+          你按下按鈕後，AI 才生成草稿並存入 Gmail
         </div>
         <div class="step-item">
           <span class="step-num">5</span>
-          草稿語言自動跟隨來信語言
+          草稿不自動寄出，仍需人工確認
         </div>
       </div>
 
+    </div>
+    <div style="margin-top:16px;background:#f5f5f5;border-radius:12px;padding:14px 16px;font-size:13px;color:#555;line-height:1.7;">
+      <strong>空白重要度 / Notion 找不到寄件人：</strong>直接略過，不 LINE 通知、不建立草稿、不消耗 AI。<br>
+      <strong>語言規則：</strong>英文來信用英文回，中文來信用繁體中文回，混用則以主要語言為準。
     </div>
   </div>
 </section>
@@ -659,23 +660,27 @@
         <span class="desc">顯示於 LINE 通知</span>
       </div>
       <div class="notion-row">
-        <span class="field">🚫 黑名單</span>
-        <span class="desc">勾選後來信直接略過，不通知不消耗 AI</span>
+        <span class="field">重要度</span>
+        <span class="desc">只保留高 / 中；空白代表略過</span>
       </div>
-      <div class="tip-row">💡 新的合作廠商 / 媒體記得加進來；電子報來源勾黑名單</div>
+      <div class="tip-row">💡 想自動起草選「高」；想先通知再決定選「中」；不想處理就留空白。</div>
     </div>
 
     <div class="notion-card">
       <div class="notion-header">📝 信件模板資料庫</div>
       <div class="notion-row">
-        <span class="field">角色 <span class="badge">必填</span></span>
+        <span class="field">模板名稱 <span class="badge">必填</span></span>
+        <span class="desc">模板顯示名稱</span>
+      </div>
+      <div class="notion-row">
+        <span class="field">適用對象角色</span>
         <span class="desc">對應聯絡人的職稱</span>
       </div>
       <div class="notion-row">
-        <span class="field">模板內容</span>
-        <span class="desc">AI 撰寫草稿的參考風格與範例</span>
+        <span class="field">主旨範本</span>
+        <span class="desc">建議：Re: {原信主旨}</span>
       </div>
-      <div class="tip-row">💡 角色名稱需與聯絡人「職稱」完全相同才能配對</div>
+      <div class="tip-row">💡 頁面內文可放草稿語氣、常用句型、回覆限制與注意事項。</div>
     </div>
 
   </div>
@@ -766,7 +771,7 @@
         </div>
         <div style="display:flex;gap:10px;align-items:center;background:#ffebee;border-radius:8px;padding:8px 12px;font-size:12px;">
           <span style="font-size:14px;">❌</span>
-          <span><strong>Email 未填</strong> → 完全找不到此聯絡人，會被當作陌生人處理</span>
+          <span><strong>Email 未填</strong> → 系統無法比對聯絡人，來信會直接略過</span>
         </div>
       </div>
 
