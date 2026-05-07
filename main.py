@@ -458,7 +458,7 @@ async def process_email_message(message: dict):
                 draft_ready=True,
             ))
 
-        elif importance == "中":
+        else:
             # 推播通知 + 起草按鈕
             _pending_drafts[message_id] = {
                 "email": email,
@@ -473,10 +473,6 @@ async def process_email_message(message: dict):
                 should_reply=True,
                 message_id=message_id,
             ))
-
-        else:
-            # 低（或未填）→ 略過
-            print(f"[SKIP] 重要度低：{sender_name}", flush=True)
 
     except Exception as e:
         import traceback
