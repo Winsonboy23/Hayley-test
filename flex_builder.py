@@ -1118,28 +1118,6 @@ def build_flex_menu() -> dict:
         ]
     )
 
-    setting_bubble = _bubble(
-        header_color="#546e7a",
-        title="⚙️ 設定指令",
-        subtitle="",
-        cmds=[
-            ("📋", "行事曆清單", "查看所有日曆與顯示狀態", None, True),
-            ("❌", "取消顯示 [名稱]", "隱藏指定日曆", None, False),
-            ("✅", "顯示 [名稱]", "恢復顯示指定日曆", None, False),
-        ]
-    )
-    setting_bubble["footer"] = {
-        "type": "box",
-        "layout": "vertical",
-        "backgroundColor": "#f5f5f5",
-        "paddingAll": "10px",
-        "contents": [{
-            "type": "text",
-            "text": "設定重啟後會重置，重新設定即可",
-            "size": "xxs", "color": "#aaaaaa", "wrap": True, "align": "center"
-        }]
-    }
-
     return {
         "type": "flex",
         "altText": "📋 可用指令清單",

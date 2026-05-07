@@ -28,7 +28,6 @@ from calendar_handler import (
     get_flex_this_month, get_flex_next_month,
     get_flex_by_month, search_flex_events,
     create_calendar_event,
-    get_all_calendars_status, add_excluded_calendar, remove_excluded_calendar,
 )
 from flex_builder import (
     build_flex_single, build_flex_carousel,
@@ -40,7 +39,6 @@ from flex_builder import (
     build_flex_email_search, build_flex_drafts_list,
     build_flex_unread_emails, build_flex_email_carousel,
     build_flex_add_event_help, build_flex_event_created,
-    build_flex_calendar_list,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -550,26 +548,6 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_flex(reply_token, build_flex_no_events("明日"))
             else:
                 await reply_flex(reply_token, build_flex_single(cal_list, events, "明日"))
-            return
-
-        # ── 行事曆清單 ──
-        if t in ["行事曆清單", "行事曆", "日曆清單"]:
-            calendars = await get_all_calendars_status()
-            await reply_flex(reply_token, build_flex_calendar_list(calendars))
-            return
-
-        # ── 取消顯示 [名稱] ──
-        if t.startswith("取消顯示 ") or t.startswith("隱藏 "):
-            cal_name = t.split(" ", 1)[1].strip()
-            add_excluded_calendar(cal_name)
-            await reply_message(reply_token, f"✅ 已隱藏「{cal_name}」的行程，輸入「行事曆清單」確認")
-            return
-
-        # ── 顯示 [名稱] ──
-        if t.startswith("顯示 ") and not any(t.startswith(k) for k in ["顯示行程", "顯示草稿", "顯示信件"]):
-            cal_name = t.split(" ", 1)[1].strip()
-            remove_excluded_calendar(cal_name)
-            await reply_message(reply_token, f"✅ 已恢復顯示「{cal_name}」的行程，輸入「行事曆清單」確認")
             return
 
         # ── 本週行程 ──
