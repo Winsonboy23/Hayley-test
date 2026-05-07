@@ -458,7 +458,7 @@ async def process_email_message(message: dict):
                 draft_ready=True,
             ))
 
-        else:
+        elif importance == "中":
             # 推播通知 + 起草按鈕
             _pending_drafts[message_id] = {
                 "email": email,
@@ -473,6 +473,9 @@ async def process_email_message(message: dict):
                 should_reply=True,
                 message_id=message_id,
             ))
+        else:
+            # 低（或未填）→ 略過，不通知、不建立草稿
+            print(f"[SKIP] 重要度低：{sender_name}", flush=True)
 
     except Exception as e:
         import traceback
@@ -629,12 +632,12 @@ async def handle_line_message(text: str, reply_token: str):
                 await reply_flex(reply_token, build_flex_carousel(cal_list, events, f"搜尋：{keyword}"))
             return
 
-        # ── 信件 高/中/低（依重要度篩選）──
-        if t in ["信件 高", "信件 中", "信件 低"]:
+        # ── 信件 高/中（依重要度篩選）──
+        if t in ["信件 高", "信件 中"]:
             imp = t.split()[-1]  # 高/中/低
             email_list = await get_contact_emails_by_importance(imp)
             emails = await get_emails_from_senders(email_list, max_results=10)
-            imp_label = {"高": "🔴 高重要度", "中": "🟡 中重要度", "低": "⚪ 低重要度"}.get(imp, imp)
+            imp_label = {"高": "🔴 高重要度", "中": "🟡 中重要度"}.get(imp, imp)
             await push_flex(build_flex_email_carousel(emails, f"{imp_label}聯絡人來信"))
             return
 
