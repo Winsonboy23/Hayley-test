@@ -1394,6 +1394,8 @@ def build_flex_add_event_help(error_hint: str = "") -> dict:
         {"type": "separator", "color": "#f0f0f0"},
         _fmt_row("加地點（@）", "新增行程 明天 14:00 品牌會議 @台北辦公室"),
         {"type": "separator", "color": "#f0f0f0"},
+        _fmt_row("一次新增多筆", "新增行程 明天 14:00 品牌會議；後天 全天 門市活動"),
+        {"type": "separator", "color": "#f0f0f0"},
         {
             "type": "box", "layout": "vertical",
             "paddingTop": "8px", "paddingBottom": "8px",
@@ -1501,6 +1503,96 @@ def build_flex_event_created(title: str, date_str: str, time_str: str, location:
             "body": {
                 "type": "box", "layout": "vertical",
                 "paddingAll": "0px", "spacing": "none",
+                "contents": body
+            }
+        }
+    }
+
+
+def build_flex_events_created(events: list[dict]) -> dict:
+    """多筆行程建立成功通知卡片"""
+    body = []
+    for i, event in enumerate(events[:10]):
+        if i:
+            body.append({"type": "separator", "color": "#f0f0f0"})
+        meta = event["date_display"]
+        if event.get("time_display"):
+            meta = f"{meta} · {event['time_display']}"
+        if event.get("location"):
+            meta = f"{meta} · {event['location']}"
+        body.append({
+            "type": "box",
+            "layout": "vertical",
+            "paddingTop": "9px",
+            "paddingBottom": "9px",
+            "paddingStart": "14px",
+            "paddingEnd": "14px",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": event["title"],
+                    "size": "sm",
+                    "color": "#222222",
+                    "weight": "bold",
+                    "wrap": False,
+                    "maxLines": 1
+                },
+                {
+                    "type": "text",
+                    "text": meta,
+                    "size": "xs",
+                    "color": "#888888",
+                    "margin": "xs",
+                    "wrap": False,
+                    "maxLines": 1
+                }
+            ]
+        })
+
+    if len(events) > 10:
+        body.append({"type": "separator", "color": "#f0f0f0"})
+        body.append({
+            "type": "text",
+            "text": f"另有 {len(events) - 10} 筆已建立",
+            "size": "xxs",
+            "color": "#aaaaaa",
+            "align": "center",
+            "margin": "sm"
+        })
+
+    return {
+        "type": "flex",
+        "altText": f"✅ 已建立 {len(events)} 筆行程",
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#2e7d32",
+                "paddingAll": "14px",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": f"✅ 已建立 {len(events)} 筆行程",
+                        "color": "#ffffff",
+                        "size": "md",
+                        "weight": "bold"
+                    },
+                    {
+                        "type": "text",
+                        "text": "已加入 Google 日曆",
+                        "color": "#c8e6c9",
+                        "size": "xxs",
+                        "margin": "xs"
+                    }
+                ]
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "paddingAll": "0px",
+                "spacing": "none",
                 "contents": body
             }
         }

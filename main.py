@@ -38,7 +38,7 @@ from flex_builder import (
     build_flex_draft_ready,
     build_flex_email_search, build_flex_drafts_list,
     build_flex_unread_emails, build_flex_email_carousel,
-    build_flex_add_event_help, build_flex_event_created,
+    build_flex_add_event_help, build_flex_event_created, build_flex_events_created,
 )
 from tasks_handler import get_all_tasks
 from notion_handler import (
@@ -184,15 +184,10 @@ def _parse_add_event(text: str) -> dict | None:
     import re
     from datetime import date as date_cls
 
-    t = text.strip()
-    t = t.replace("～", "~")
-
-    for prefix in ["新增行程", "新增", "+"]:
-        if t.startswith(prefix):
-            t = t[len(prefix):].strip()
-            break
-    else:
+    t = _strip_add_event_prefix(text)
+    if t is None:
         return None
+    t = t.replace("～", "~")
 
     location = ""
     loc_match = re.search(r"@(.+)$", t)
@@ -371,6 +366,40 @@ def _parse_add_event(text: str) -> dict | None:
             if start_date != end_date else start_date.strftime("%m/%d")
         ),
     }
+
+
+def _strip_add_event_prefix(text: str) -> str | None:
+    t = text.strip()
+    for prefix in ["新增行程", "新增", "+"]:
+        if t.startswith(prefix):
+            return t[len(prefix):].strip()
+    return None
+
+
+def _parse_add_events(text: str) -> list[dict] | None:
+    """解析單筆或多筆新增行程。多筆可用換行、分號或全形分號分隔。"""
+    body = _strip_add_event_prefix(text)
+    if body is None:
+        return None
+
+    import re
+    entries = [part.strip() for part in re.split(r"[\n;；]+", body) if part.strip()]
+    if not entries:
+        return None
+
+    events = []
+    for entry in entries:
+        entry = re.sub(r"^(?:[-*•]\s*|\d+[.、]\s*)", "", entry).strip()
+        if not entry:
+            continue
+        parsed = _parse_add_event(entry)
+        if parsed is None:
+            parsed = _parse_add_event(f"新增行程 {entry}")
+        if parsed is None:
+            return None
+        events.append(parsed)
+
+    return events or None
 
 
 
@@ -594,25 +623,30 @@ async def handle_line_message(text: str, reply_token: str):
 
         # ── 新增行程 ──
         if t.startswith("新增行程") or t.startswith("新增") or t.startswith("+"):
-            parsed = _parse_add_event(t)
-            if not parsed:
+            parsed_events = _parse_add_events(t)
+            if not parsed_events:
                 await reply_flex(reply_token, build_flex_add_event_help("格式有誤，請參考以下範例"))
                 return
             try:
-                await create_calendar_event(
-                    title=parsed["title"],
-                    start_date=parsed["start_date"],
-                    end_date=parsed["end_date"],
-                    start_time=parsed["start_time"],
-                    end_time=parsed.get("end_time"),
-                    location=parsed["location"]
-                )
-                await reply_flex(reply_token, build_flex_event_created(
-                    title=parsed["title"],
-                    date_str=parsed["date_display"],
-                    time_str=parsed["time_display"],
-                    location=parsed["location"]
-                ))
+                for parsed in parsed_events:
+                    await create_calendar_event(
+                        title=parsed["title"],
+                        start_date=parsed["start_date"],
+                        end_date=parsed["end_date"],
+                        start_time=parsed["start_time"],
+                        end_time=parsed.get("end_time"),
+                        location=parsed["location"]
+                    )
+                if len(parsed_events) == 1:
+                    parsed = parsed_events[0]
+                    await reply_flex(reply_token, build_flex_event_created(
+                        title=parsed["title"],
+                        date_str=parsed["date_display"],
+                        time_str=parsed["time_display"],
+                        location=parsed["location"]
+                    ))
+                else:
+                    await reply_flex(reply_token, build_flex_events_created(parsed_events))
             except Exception as e:
                 print(f"create_calendar_event error: {e}", flush=True)
                 await reply_message(reply_token, "⚠️ 行程建立失敗，請稍後再試")
