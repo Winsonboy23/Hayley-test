@@ -20,7 +20,7 @@ from gmail_handler import (
     get_email_by_id, create_draft,
     count_today_emails, count_drafts,
     setup_gmail_watch, search_emails, get_drafts_list, get_unread_emails,
-    get_recent_emails, get_emails_from_senders,
+    get_recent_emails, get_emails_from_senders, get_new_inbox_messages_since,
 )
 from calendar_handler import (
     get_tomorrow_events,
@@ -101,6 +101,7 @@ PROCESSED_HISTORY_TTL_SECONDS = 600
 PROCESSED_EMAIL_TTL_SECONDS = 3600
 processed_history_ids = {}
 processed_message_ids = {}
+gmail_history_cursor = None
 
 
 def _cleanup_cache(cache: dict, ttl_seconds: int) -> None:
@@ -137,6 +138,7 @@ async def list_models():
 @app.post("/webhook/gmail")
 async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
     """接收 Gmail Push Notification"""
+    global gmail_history_cursor
     try:
         body = await request.json()
         message_data = body.get("message", {})
@@ -156,7 +158,14 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
             return {"status": "duplicate_history_ignored"}
         
         if history_id:
-            background_tasks.add_task(process_new_email, history_id)
+            start_history_id = gmail_history_cursor
+            gmail_history_cursor = str(history_id)
+            if start_history_id:
+                background_tasks.add_task(process_new_email, start_history_id)
+            else:
+                # First notification after process start has no previous cursor in memory.
+                # Fall back to the latest inbox message and rely on message-id dedupe.
+                background_tasks.add_task(process_new_email, "test")
         
         return {"status": "ok"}
     except Exception as e:
@@ -373,24 +382,38 @@ async def process_new_email(history_id: str):
         from gmail_handler import get_gmail_service
         service = get_gmail_service()
 
-        results = service.users().messages().list(
-            userId="me",
-            maxResults=1,
-            labelIds=["INBOX"]
-        ).execute()
+        if history_id == "test":
+            results = service.users().messages().list(
+                userId="me",
+                maxResults=1,
+                labelIds=["INBOX"]
+            ).execute()
+            messages = results.get("messages", [])
+        else:
+            messages = await get_new_inbox_messages_since(history_id)
 
-        messages = results.get("messages", [])
         if not messages:
+            print(f"[DEBUG] historyId={history_id} 沒有新增 INBOX 信件", flush=True)
             return
 
-        latest_message = messages[0]
-        message_id = latest_message["id"]
+        for message in messages:
+            await process_email_message(message)
+
+    except Exception as e:
+        import traceback
+        print(f"process_new_email error: {e}\n{traceback.format_exc()}", flush=True)
+
+
+async def process_email_message(message: dict):
+    """處理單封 Gmail message。"""
+    try:
+        message_id = message["id"]
         if _mark_once(processed_message_ids, message_id, PROCESSED_EMAIL_TTL_SECONDS):
             print(f"[DEBUG] 略過重複 messageId：{message_id}", flush=True)
             return
 
         email = await get_email_by_id(message_id)
-        print(f"[DEBUG] 最新信件：from={email['from_email']} subject={email['subject']}", flush=True)
+        print(f"[DEBUG] 新信件：from={email['from_email']} subject={email['subject']}", flush=True)
 
         # 非聯絡人 → 完全略過
         contact = await find_contact_by_email(email["from_email"])
@@ -402,7 +425,7 @@ async def process_new_email(history_id: str):
         sender_name = contact["name"]
         sender_role = contact["role"]
         sender_unit = contact["unit"]
-        thread_id = latest_message.get("threadId", message_id)
+        thread_id = message.get("threadId", message_id)
 
         print(f"[DEBUG] 聯絡人重要度：{importance} | {sender_name}", flush=True)
 
@@ -459,7 +482,7 @@ async def process_new_email(history_id: str):
 
     except Exception as e:
         import traceback
-        print(f"process_new_email error: {e}\n{traceback.format_exc()}", flush=True)
+        print(f"process_email_message error: {e}\n{traceback.format_exc()}", flush=True)
 
 
 # ── LINE Webhook（接收海莉的訊息）──
@@ -764,8 +787,11 @@ async def handle_postback(data: str, reply_token: str):
 
 
 async def renew_gmail_watch():
+    global gmail_history_cursor
     try:
         result = await setup_gmail_watch()
+        if result.get("historyId"):
+            gmail_history_cursor = str(result["historyId"])
         print(f"[GMAIL WATCH] 已更新，到期：{result.get('expiration')}", flush=True)
     except Exception as e:
         print(f"[GMAIL WATCH] 更新失敗：{e}", flush=True)
@@ -774,7 +800,10 @@ async def renew_gmail_watch():
 @app.get("/setup/gmail-watch")
 async def trigger_gmail_watch():
     """手動啟動或更新 Gmail Watch"""
+    global gmail_history_cursor
     result = await setup_gmail_watch()
+    if result.get("historyId"):
+        gmail_history_cursor = str(result["historyId"])
     return {"status": "ok", "expiration": result.get("expiration"), "historyId": result.get("historyId")}
 
 

@@ -128,6 +128,43 @@ async def get_email_by_id(message_id: str) -> dict:
     }
 
 
+async def get_new_inbox_messages_since(history_id: str, max_results: int = 10) -> list:
+    """Return inbox messages added after the Gmail history id notification."""
+    service = get_gmail_service()
+    message_refs = []
+    page_token = None
+
+    while True:
+        request = service.users().history().list(
+            userId="me",
+            startHistoryId=history_id,
+            historyTypes=["messageAdded"],
+            labelId="INBOX",
+            maxResults=100,
+            pageToken=page_token,
+        )
+        results = request.execute()
+
+        for history in results.get("history", []):
+            for item in history.get("messagesAdded", []):
+                message = item.get("message", {})
+                labels = set(message.get("labelIds", []))
+                if "INBOX" not in labels:
+                    continue
+                message_refs.append({
+                    "id": message.get("id"),
+                    "threadId": message.get("threadId"),
+                })
+                if len(message_refs) >= max_results:
+                    return [msg for msg in message_refs if msg.get("id")]
+
+        page_token = results.get("nextPageToken")
+        if not page_token:
+            break
+
+    return [msg for msg in message_refs if msg.get("id")]
+
+
 async def create_draft(
     to_email: str,
     subject: str,
